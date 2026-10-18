@@ -1,0 +1,33 @@
+{
+  "name": "ridemitra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Responsive carpooling and bikepooling platform for city and intercity commuting",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"API,WEB\" -c \"blue.bold,cyan.bold\" \"npm run dev --workspace=@ridemitra/api\" \"npm run dev --workspace=@ridemitra/web\"",
+    "build": "npm run build --workspace=@ridemitra/shared && npm run build --workspace=@ridemitra/api && npm run build --workspace=@ridemitra/web",
+    "typecheck": "npm run typecheck --workspace=@ridemitra/shared && npm run typecheck --workspace=@ridemitra/api && npm run typecheck --workspace=@ridemitra/web",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "test": "npm run test --workspace=@ridemitra/api && npm run test --workspace=@ridemitra/web"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.20.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
