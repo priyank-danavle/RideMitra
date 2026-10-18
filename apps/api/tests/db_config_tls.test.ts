@@ -1,13 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import mysql from 'mysql2/promise';
 import { envSchema } from '../src/config/index.js';
 import { buildSslOptions } from '../src/db/index.js';
 import {
   parseMigrationEnv,
   isAutoCreateAllowed,
+  isResetAllowed,
   buildMigrationSslOptions,
   sanitizeDbError,
+  migrateDatabase,
 } from '../../database/migrate.js';
 
 describe('RideMitra Database TLS & Safety Verification (Phase 5.5C)', () => {
@@ -124,10 +127,13 @@ describe('RideMitra Database TLS & Safety Verification (Phase 5.5C)', () => {
         expect(poolSsl?.ca).toBe(dummyCaContent);
         expect(poolSsl?.rejectUnauthorized).toBe(true);
         expect(poolSsl?.minVersion).toBe('TLSv1.2');
+        expect(poolSsl?.verifyIdentity).toBe(true);
 
         const migSsl = buildMigrationSslOptions(true, tempCaFile);
         expect(migSsl?.ca).toBe(dummyCaContent);
         expect(migSsl?.rejectUnauthorized).toBe(true);
+        expect(migSsl?.minVersion).toBe('TLSv1.2');
+        expect(migSsl?.verifyIdentity).toBe(true);
       } finally {
         if (fs.existsSync(tempCaFile)) {
           fs.unlinkSync(tempCaFile);
@@ -142,18 +148,28 @@ describe('RideMitra Database TLS & Safety Verification (Phase 5.5C)', () => {
       expect(buildMigrationSslOptions(false)).toBeUndefined();
     });
 
-    it('should strictly enforce rejectUnauthorized: true and minVersion: TLSv1.2 when TLS is enabled', () => {
+    it('should strictly enforce rejectUnauthorized: true, minVersion: TLSv1.2, and verifyIdentity: true when TLS is enabled', () => {
       const poolSsl = buildSslOptions(true);
       expect(poolSsl).toEqual({
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
+        verifyIdentity: true,
       });
 
       const migSsl = buildMigrationSslOptions(true);
       expect(migSsl).toEqual({
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
+        verifyIdentity: true,
       });
+    });
+
+    it('should enable TLS hostname verification with verifyIdentity: true', () => {
+      const poolSsl = buildSslOptions(true);
+      expect(poolSsl?.verifyIdentity).toBe(true);
+
+      const migSsl = buildMigrationSslOptions(true);
+      expect(migSsl?.verifyIdentity).toBe(true);
     });
 
     it('should never permit rejectUnauthorized: false in any generated options', () => {
@@ -234,6 +250,143 @@ describe('RideMitra Database TLS & Safety Verification (Phase 5.5C)', () => {
       expect(sanitized.message).not.toContain('super_secret_password_123');
       expect(sanitized.message).not.toContain('secret_token_abc');
       expect(sanitized.message).toContain('[REDACTED]');
+    });
+  });
+
+  describe('7. Production Destructive Reset Guard', () => {
+    it('should forbid reset operations when NODE_ENV is production', () => {
+      expect(isResetAllowed('production')).toBe(false);
+    });
+
+    it('should allow reset operations in development and test environments', () => {
+      expect(isResetAllowed('development')).toBe(true);
+      expect(isResetAllowed('test')).toBe(true);
+    });
+
+    it('should reject --reset in migrateDatabase when NODE_ENV is production and execute 0 DROP TABLE queries', async () => {
+      const executedQueries: string[] = [];
+      const mockConn = {
+        query: vi.fn().mockImplementation((sql: string) => {
+          executedQueries.push(sql);
+          return Promise.resolve([[]]);
+        }),
+        end: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const spy = vi
+        .spyOn(mysql, 'createConnection')
+        .mockResolvedValue(mockConn as unknown as mysql.Connection);
+
+      const prodEnv = parseMigrationEnv({
+        NODE_ENV: 'production',
+        DB_HOST: 'localhost',
+        DB_PORT: '3306',
+        DB_USER: 'test_user',
+        DB_PASSWORD: 'test_password',
+        DB_NAME: 'test_db',
+        DB_SSL: 'false',
+        DB_AUTO_CREATE: 'false',
+      });
+
+      await expect(migrateDatabase(prodEnv, ['--reset'])).rejects.toThrow(
+        /Destructive operation '--reset' is strictly prohibited in production/,
+      );
+
+      // Verify no DROP TABLE query was executed
+      const dropQueries = executedQueries.filter((q) => q.toUpperCase().includes('DROP TABLE'));
+      expect(dropQueries).toHaveLength(0);
+      expect(mockConn.query).not.toHaveBeenCalled();
+
+      // Verify connection was closed safely in finally block
+      expect(mockConn.end).toHaveBeenCalledTimes(1);
+
+      spy.mockRestore();
+    });
+
+    it('should proceed normally without executing DROP TABLE queries when --reset is absent in production', async () => {
+      const executedQueries: string[] = [];
+      const mockConn = {
+        query: vi.fn().mockImplementation((sql: string) => {
+          executedQueries.push(sql);
+          if (sql.includes('SELECT name FROM schema_migrations')) {
+            return Promise.resolve([[]]);
+          }
+          return Promise.resolve([{ affectedRows: 0 }]);
+        }),
+        end: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const spy = vi
+        .spyOn(mysql, 'createConnection')
+        .mockResolvedValue(mockConn as unknown as mysql.Connection);
+
+      const prodEnv = parseMigrationEnv({
+        NODE_ENV: 'production',
+        DB_HOST: 'localhost',
+        DB_PORT: '3306',
+        DB_USER: 'test_user',
+        DB_PASSWORD: 'test_password',
+        DB_NAME: 'test_db',
+        DB_SSL: 'false',
+        DB_AUTO_CREATE: 'false',
+      });
+
+      // Pass empty args array (no --reset flag)
+      await migrateDatabase(prodEnv, []);
+
+      // Verify NO DROP TABLE query was ever executed
+      const dropQueries = executedQueries.filter((q) => q.toUpperCase().includes('DROP TABLE'));
+      expect(dropQueries).toHaveLength(0);
+
+      // Verify schema_migrations check and setup ran
+      expect(executedQueries.some((q) => q.includes('CREATE TABLE IF NOT EXISTS schema_migrations'))).toBe(true);
+
+      // Verify connection was properly closed in finally block
+      expect(mockConn.end).toHaveBeenCalledTimes(1);
+
+      spy.mockRestore();
+    });
+
+    it('should allow --reset and drop tables when NODE_ENV is development', async () => {
+      const executedQueries: string[] = [];
+      const mockConn = {
+        query: vi.fn().mockImplementation((sql: string) => {
+          executedQueries.push(sql);
+          if (sql.includes('SELECT name FROM schema_migrations')) {
+            return Promise.resolve([[]]);
+          }
+          return Promise.resolve([{ affectedRows: 0 }]);
+        }),
+        end: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const spy = vi
+        .spyOn(mysql, 'createConnection')
+        .mockResolvedValue(mockConn as unknown as mysql.Connection);
+
+      const devEnv = parseMigrationEnv({
+        NODE_ENV: 'development',
+        DB_HOST: 'localhost',
+        DB_PORT: '3306',
+        DB_USER: 'test_user',
+        DB_PASSWORD: 'test_password',
+        DB_NAME: 'test_db',
+        DB_SSL: 'false',
+        DB_AUTO_CREATE: 'false',
+      });
+
+      await migrateDatabase(devEnv, ['--reset']);
+
+      // Verify DROP TABLE queries WERE executed in development
+      const dropQueries = executedQueries.filter((q) => q.toUpperCase().includes('DROP TABLE'));
+      expect(dropQueries.length).toBeGreaterThanOrEqual(6);
+      expect(dropQueries.some((q) => q.includes('DROP TABLE IF EXISTS bookings;'))).toBe(true);
+      expect(dropQueries.some((q) => q.includes('DROP TABLE IF EXISTS schema_migrations;'))).toBe(true);
+
+      // Verify connection cleanup
+      expect(mockConn.end).toHaveBeenCalledTimes(1);
+
+      spy.mockRestore();
     });
   });
 });

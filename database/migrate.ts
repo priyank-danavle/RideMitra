@@ -54,6 +54,10 @@ export function isAutoCreateAllowed(nodeEnv: string, autoCreateRequested: boolea
   return nodeEnv === 'development' && autoCreateRequested;
 }
 
+export function isResetAllowed(nodeEnv: string): boolean {
+  return nodeEnv !== 'production';
+}
+
 export function buildMigrationSslOptions(
   isSsl: boolean,
   caPath?: string,
@@ -73,6 +77,7 @@ export function buildMigrationSslOptions(
   return {
     minVersion: 'TLSv1.2',
     rejectUnauthorized: true,
+    verifyIdentity: true,
     ...(caContent ? { ca: caContent } : {}),
   };
 }
@@ -123,6 +128,7 @@ export function sanitizeDbError(err: unknown): { code: string; message: string }
 
 export async function migrateDatabase(
   envConfig: MigrationEnv = parseMigrationEnv(),
+  args: string[] = process.argv,
 ): Promise<void> {
   const {
     DB_HOST,
@@ -203,7 +209,12 @@ export async function migrateDatabase(
 
   try {
     // If --reset flag provided, drop all tables
-    if (process.argv.includes('--reset')) {
+    if (args.includes('--reset')) {
+      if (!isResetAllowed(NODE_ENV)) {
+        throw new Error(
+          `Destructive operation '--reset' is strictly prohibited in production (NODE_ENV='${NODE_ENV}').`,
+        );
+      }
       console.log('⚠️  Reset flag detected. Dropping existing tables...');
       await connection.query('DROP TABLE IF EXISTS bookings;');
       await connection.query('DROP TABLE IF EXISTS rides;');

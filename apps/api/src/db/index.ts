@@ -21,6 +21,7 @@ export function buildSslOptions(isSsl: boolean, caPath?: string): mysql.SslOptio
   return {
     minVersion: 'TLSv1.2',
     rejectUnauthorized: true,
+    verifyIdentity: true,
     ...(caContent ? { ca: caContent } : {}),
   };
 }
