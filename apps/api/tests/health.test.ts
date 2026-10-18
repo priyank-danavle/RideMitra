@@ -41,7 +41,7 @@ describe('API Foundation & Health Endpoints', () => {
         timestamp: expect.any(String),
         checks: {
           system: 'ok',
-          database: 'not_configured',
+          database: 'connected',
         },
       }),
     });

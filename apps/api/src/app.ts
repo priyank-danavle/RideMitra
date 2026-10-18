@@ -1,11 +1,15 @@
 import express, { Express } from 'express';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { config } from './config/index.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.routes.js';
+import { authRouter } from './routes/auth.routes.js';
+import { userRouter } from './routes/user.routes.js';
+import { vehicleRouter } from './routes/vehicle.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -17,12 +21,13 @@ export function createApp(): Express {
     }),
   );
 
-  // 2. CORS handling
+  // 2. CORS handling (allow cookies & credentials)
   app.use(corsMiddleware);
 
-  // 3. Body Parsing
+  // 3. Body & Cookie Parsing
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(cookieParser());
 
   // 4. Request Logging
   app.use(requestLogger);
@@ -36,12 +41,18 @@ export function createApp(): Express {
       endpoints: {
         health: `${config.apiPrefix}/health`,
         ready: `${config.apiPrefix}/ready`,
+        auth: `${config.apiPrefix}/auth`,
+        users: `${config.apiPrefix}/users`,
+        vehicles: `${config.apiPrefix}/vehicles`,
       },
     });
   });
 
   // 6. Mount API v1 routers
   app.use(config.apiPrefix, healthRouter);
+  app.use(`${config.apiPrefix}/auth`, authRouter);
+  app.use(`${config.apiPrefix}/users`, userRouter);
+  app.use(`${config.apiPrefix}/vehicles`, vehicleRouter);
 
   // 7. 404 Not Found Handler
   app.use(notFoundHandler);

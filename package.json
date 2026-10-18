@@ -15,7 +15,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
-    "test": "npm run test --workspace=@ridemitra/api && npm run test --workspace=@ridemitra/web"
+    "test": "npm run test --workspace=@ridemitra/api && npm run test --workspace=@ridemitra/web",
+    "db:migrate": "npx tsx database/migrate.ts",
+    "db:reset": "npx tsx database/migrate.ts --reset"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",

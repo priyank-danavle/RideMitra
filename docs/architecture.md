@@ -116,3 +116,78 @@ ridemitra/
 4. **Input Sanitization & Server-side Validation:** Client inputs are treated as untrusted. Server-side validation parses payload structures before business logic is invoked.
 5. **Least-Privilege Database Access:** Database accounts for application runtime have restricted DDL privileges; migrations run under dedicated administrative roles.
 6. **Graceful Shutdown:** The Node.js HTTP server captures `SIGTERM` and `SIGINT` signals, closing active sockets and terminating background connections cleanly before process exit.
+
+---
+
+## 5. Phase 2 Architecture: Authentication, Profiles & Vehicles
+
+### 5.1 Authentication & Session Lifecycle
+
+```
+                     ┌────────────────────────────────────────────────────────┐
+                     │                 Browser Client (SPA)                   │
+                     └───────────────────────────┬────────────────────────────┘
+                                                 │
+                                                 │ 1. POST /api/v1/auth/login
+                                                 │    { email, password }
+                                                 ▼
+                     ┌────────────────────────────────────────────────────────┐
+                     │                 Auth Route & Controller                │
+                     │  - Rate Limiter (5 attempts / 15m)                     │
+                     │  - Zod Request Schema Validation                       │
+                     └───────────────────────────┬────────────────────────────┘
+                                                 │
+                                                 │ 2. Fetch user by email
+                                                 ▼
+                     ┌────────────────────────────────────────────────────────┐
+                     │                     MySQL Database                     │
+                     │  - users table (email normalized to lowercase)         │
+                     │  - bcrypt.compare(password, password_hash)             │
+                     └───────────────────────────┬────────────────────────────┘
+                                                 │
+                                                 │ 3. Sign JWT & hash with SHA-256
+                                                 ▼
+                     ┌────────────────────────────────────────────────────────┐
+                     │                  Token & Session Service               │
+                     │  - Insert session (user_id, token_hash, expires_at)    │
+                     └───────────────────────────┬────────────────────────────┘
+                                                 │
+                                                 │ 4. Set HttpOnly Cookie & return user
+                                                 ▼
+                     ┌────────────────────────────────────────────────────────┐
+                     │     Response: Set-Cookie ridemitra_session + User      │
+                     └────────────────────────────────────────────────────────┘
+```
+
+#### Dual Authentication Strategy
+
+- **Web App (Browser):** Uses `HttpOnly`, `SameSite=Lax`, `Secure` (in production) cookies to eliminate token theft via Cross-Site Scripting (XSS).
+- **REST / API Clients:** Supports standard `Authorization: Bearer <jwt>` HTTP header fallback for mobile or command-line clients.
+
+#### Active Revocation via Hashed Session Storage
+
+- Pure stateless JWTs cannot be revoked upon logout until expiration.
+- RideMitra records each issued session in MySQL `sessions` table.
+- Instead of storing raw JWTs, the database stores `SHA-256(jwt)`.
+- On `POST /api/v1/auth/logout`, the server sets `revoked_at = NOW()`.
+- Future requests with that token immediately fail authentication with `401 Unauthorized`.
+
+### 5.2 User Profile & Mass Assignment Protection
+
+- User profiles expose non-sensitive fields (`id`, `name`, `email`, `role`, `phone`, `bio`, `isVerified`, `createdAt`).
+- Sensitive attributes (`password_hash`, internal timestamps) are stripped.
+- In `PATCH /api/v1/users/profile`, Zod's `.strict()` parser guarantees that any attempt to update privileged fields (`role`, `isVerified`, `id`, `email`) returns `400 Bad Request`.
+
+### 5.3 Vehicle Management & Tenant Isolation
+
+- Every vehicle record belongs to a specific user (`user_id`).
+- All vehicle queries enforce ownership filtering:
+  ```sql
+  SELECT * FROM vehicles WHERE id = ? AND user_id = ? AND is_active = TRUE;
+  ```
+- If a user attempts to view, edit, or delete another user's vehicle, the API responds with `404 Not Found` (avoiding disclosure of vehicle existence across users).
+- **Capacity Rules:**
+  - `CAR`: 1 to 8 passenger seats.
+  - `BIKE`: Strictly 1 passenger seat (driver + 1 pillion rider).
+- **Soft Deactivation:** `DELETE /api/v1/vehicles/:id` sets `is_active = FALSE`. Historical records remain intact for future Phase 3/4 ride references and audit trails.
+- **Verification Integrity:** All vehicles default `is_verified = FALSE` and cannot be self-verified through the API.

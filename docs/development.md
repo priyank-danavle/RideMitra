@@ -43,9 +43,37 @@ Copy the root `.env.example` file to create your local `.env`:
 cp .env.example .env
 ```
 
-Review `.env` to ensure appropriate local ports and settings. In Phase 1, default fallback values allow the API and web apps to start out of the box even without modifications.
+Review `.env` to ensure appropriate local ports and settings. By default, `DB_PORT=3307` is set to prevent port conflict with any local MySQL service running on port 3306.
 
-### Step 4: Run the Development Servers
+### Step 4: Start the MySQL Database Container
+
+Launch the background MySQL 8.0 container using Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Verify that the container is healthy:
+
+```bash
+docker compose ps
+```
+
+### Step 5: Apply Database Migrations
+
+Apply all schema migrations (users, sessions, vehicles) to initialize the database:
+
+```bash
+npm run db:migrate
+```
+
+To reset the database during local development (drops all tables and reapplies migrations cleanly):
+
+```bash
+npm run db:reset
+```
+
+### Step 6: Run the Development Servers
 
 Start both the API backend and the Vite frontend concurrently:
 
@@ -58,7 +86,7 @@ By default:
 - **Frontend (Web):** `http://localhost:5173`
 - **Backend API:** `http://localhost:4000`
 - **Health Check Endpoint:** `http://localhost:4000/api/v1/health`
-- **Readiness Endpoint:** `http://localhost:4000/api/v1/ready`
+- **Database Readiness Endpoint:** `http://localhost:4000/api/v1/ready`
 
 ---
 
@@ -69,6 +97,8 @@ All primary commands are executable from the root of the monorepo:
 | Command                | Description                                                                   |
 | ---------------------- | ----------------------------------------------------------------------------- |
 | `npm run dev`          | Runs all workspaces in development mode concurrently                          |
+| `npm run db:migrate`   | Executes all pending SQL migrations against configured MySQL instance         |
+| `npm run db:reset`     | Drops all tables and reapplies all migrations (dev only)                      |
 | `npm run build`        | Compiles the shared package, builds API, and generates Vite production bundle |
 | `npm run lint`         | Runs ESLint across all workspaces                                             |
 | `npm run lint:fix`     | Automatically fixes auto-fixable lint issues                                  |

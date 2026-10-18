@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import type { HealthCheckResponse, ReadinessCheckResponse } from '@ridemitra/shared';
 import { config } from '../config/index.js';
+import { testDbConnection } from '../db/index.js';
 
 export const healthRouter = Router();
 
@@ -28,23 +29,25 @@ healthRouter.get('/health', (_req: Request, res: Response) => {
 
 /**
  * GET /api/v1/ready
- * Readiness probe: checks if essential subsystems are ready to serve traffic.
- * In Phase 1, database is documented as not yet configured in runtime.
+ * Readiness probe: checks if database and subsystems are ready to serve traffic.
  */
-healthRouter.get('/ready', (_req: Request, res: Response) => {
+healthRouter.get('/ready', async (_req: Request, res: Response) => {
+  const isDbReady = await testDbConnection();
+
   const payload: ReadinessCheckResponse = {
-    status: 'ready',
+    status: isDbReady ? 'ready' : 'not_ready',
     service: config.serviceName,
     version: config.version,
     timestamp: new Date().toISOString(),
     checks: {
       system: 'ok',
-      database: 'not_configured', // Database integration is scheduled for Phase 2
+      database: isDbReady ? 'connected' : 'unreachable',
     },
   };
 
-  res.status(200).json({
-    success: true,
+  const statusCode = isDbReady ? 200 : 503;
+  res.status(statusCode).json({
+    success: isDbReady,
     data: payload,
   });
 });

@@ -2,6 +2,8 @@ import http from 'http';
 import { app } from './app.js';
 import { config } from './config/index.js';
 
+import { closeDbPool } from './db/index.js';
+
 const server = http.createServer(app);
 
 server.listen(config.port, () => {
@@ -13,15 +15,17 @@ server.listen(config.port, () => {
 /**
  * Graceful shutdown handler
  */
-function gracefulShutdown(signal: string) {
+async function gracefulShutdown(signal: string) {
   console.log(`\n🛑 Received ${signal}. Initiating graceful shutdown...`);
+
+  await closeDbPool();
 
   server.close((err) => {
     if (err) {
       console.error('Error during server close:', err);
       process.exit(1);
     }
-    console.log('✅ HTTP server closed gracefully.');
+    console.log('✅ HTTP server and database pool closed gracefully.');
     process.exit(0);
   });
 

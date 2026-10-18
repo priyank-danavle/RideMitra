@@ -6,20 +6,20 @@ This document outlines the sequential engineering roadmap for **RideMitra**. Eac
 
 ## Roadmap Overview
 
-| Phase       | Title                           | Primary Focus                                                           | Status          |
-| ----------- | ------------------------------- | ----------------------------------------------------------------------- | --------------- |
-| **Phase 1** | Foundation & Project Setup      | Monorepo scaffolding, web shell, API skeleton, CI/CD, documentation     | **In Progress** |
-| **Phase 2** | Authentication & User Profiles  | JWT/Session auth, user & driver roles, profile and vehicle management   | Planned         |
-| **Phase 3** | Ride Management & Search        | Ride publishing, city/intercity routes, search filters, database schema | Planned         |
-| **Phase 4** | Booking & Seat Management       | Atomic booking requests, driver approval, concurrency handling          | Planned         |
-| **Phase 5** | GraphQL & External Integrations | GraphQL dashboard queries, maps/geocoding, driver/passenger panels      | Planned         |
-| **Phase 6** | Testing & Product Quality       | Integration/E2E testing, security review, performance audit             | Planned         |
-| **Phase 7** | Deployment & Public Launch      | Production staging, Cloudflare hosting, MySQL provisioning, SSL         | Planned         |
-| **Phase 8** | Advanced Features               | Route intelligence service, telemetry analytics, safety enhancements    | Planned         |
+| Phase       | Title                           | Primary Focus                                                           | Status         |
+| ----------- | ------------------------------- | ----------------------------------------------------------------------- | -------------- |
+| **Phase 1** | Foundation & Project Setup      | Monorepo scaffolding, web shell, API skeleton, CI/CD, documentation     | **Completed**  |
+| **Phase 2** | Authentication & User Profiles  | JWT/Session auth, user & driver roles, profile and vehicle management   | **Completed**  |
+| **Phase 3** | Ride Management & Search        | Ride publishing, city/intercity routes, search filters, database schema | Planned (Next) |
+| **Phase 4** | Booking & Seat Management       | Atomic booking requests, driver approval, concurrency handling          | Planned        |
+| **Phase 5** | GraphQL & External Integrations | GraphQL dashboard queries, maps/geocoding, driver/passenger panels      | Planned        |
+| **Phase 6** | Testing & Product Quality       | Integration/E2E testing, security review, performance audit             | Planned        |
+| **Phase 7** | Deployment & Public Launch      | Production staging, Cloudflare hosting, MySQL provisioning, SSL         | Planned        |
+| **Phase 8** | Advanced Features               | Route intelligence service, telemetry analytics, safety enhancements    | Planned        |
 
 ---
 
-## Phase 1 — Foundation and Project Setup (Current Phase)
+## Phase 1 — Foundation and Project Setup (Completed)
 
 ### Goals
 
@@ -33,13 +33,13 @@ This document outlines the sequential engineering roadmap for **RideMitra**. Eac
 
 - [x] Inspect workspace and initialize Git version control.
 - [x] Create comprehensive architectural, product overview, and roadmap documentation.
-- [ ] Set up npm workspaces (`apps/web`, `apps/api`, `packages/shared`).
-- [ ] Implement `packages/shared` for isomorphic types and DTO contracts.
-- [ ] Implement `apps/api` with Zod environment validation, graceful shutdown, health endpoints (`/api/v1/health`, `/api/v1/ready`), and CORS security.
-- [ ] Implement `apps/web` application shell with accessible navigation, hero section, ride search form, commute categories, and real-time backend health connectivity check.
-- [ ] Add Docker Compose configuration for local MySQL 8.0 with health checks.
-- [ ] Configure ESLint, Prettier, TypeScript strict mode, and automated test runners.
-- [ ] Configure GitHub Actions workflow for pull request and push validation.
+- [x] Set up npm workspaces (`apps/web`, `apps/api`, `packages/shared`).
+- [x] Implement `packages/shared` for isomorphic types and DTO contracts.
+- [x] Implement `apps/api` with Zod environment validation, graceful shutdown, health endpoints (`/api/v1/health`, `/api/v1/ready`), and CORS security.
+- [x] Implement `apps/web` application shell with accessible navigation, hero section, ride search form, commute categories, and real-time backend health connectivity check.
+- [x] Add Docker Compose configuration for local MySQL 8.0 with health checks.
+- [x] Configure ESLint, Prettier, TypeScript strict mode, and automated test runners.
+- [x] Configure GitHub Actions workflow for pull request and push validation.
 
 ### Dependencies
 
@@ -61,7 +61,7 @@ A fully runnable, documented monorepo with verified tests, build scripts, CI aut
 
 ---
 
-## Phase 2 — Authentication and User Profiles
+## Phase 2 — Authentication, User Profiles & Vehicle Management (Completed)
 
 ### Goals
 
@@ -71,15 +71,15 @@ A fully runnable, documented monorepo with verified tests, build scripts, CI aut
 
 ### Implementation Tasks
 
-- [ ] Design and apply MySQL schema migrations for `users` and `vehicles` tables.
-- [ ] Implement secure password hashing with bcrypt/argon2.
-- [ ] Implement JWT or secure HTTP-only cookie session authentication.
-- [ ] Add registration and login endpoints with rigorous input validation.
-- [ ] Build user profile management endpoints (contact info, emergency contact, bio).
-- [ ] Build vehicle management endpoints (make, model, license plate, vehicle type: car/bike).
-- [ ] Create frontend login, registration, and profile management screens with accessible forms.
-- [ ] Implement protected route guards on frontend and authentication middleware on API.
-- [ ] Add unit and integration tests for authentication flows and token invalidation.
+- [x] Design and apply MySQL schema migrations for `users`, `sessions`, and `vehicles` tables.
+- [x] Implement secure password hashing with bcryptjs (12 salt rounds).
+- [x] Implement JWT + HttpOnly cookie session authentication with database-backed token revocation.
+- [x] Add registration and login endpoints with input validation and rate limiting.
+- [x] Build user profile management endpoints with strict mass-assignment protection.
+- [x] Build vehicle management endpoints with capacity validation (Car: 1-8, Bike: 1) and ownership isolation.
+- [x] Create frontend login, registration, dashboard, profile, and vehicle management screens with accessible forms.
+- [x] Implement protected route guards on frontend and authentication middleware on API.
+- [x] Add unit and integration tests (31 API tests, 10 Web tests) for authentication, profile, and vehicle isolation.
 
 ### Dependencies
 
@@ -91,11 +91,11 @@ A fully runnable, documented monorepo with verified tests, build scripts, CI aut
 2. Passwords are never stored in plaintext or logged.
 3. Users can register multiple vehicles and specify vehicle type.
 4. Unauthorized requests to protected endpoints return HTTP 401/403.
-5. All auth endpoints are backed by integration tests.
+5. All auth and vehicle endpoints are backed by automated tests.
 
 ### Deliverable
 
-Working authentication subsystem with user and vehicle management.
+Working authentication subsystem with user, session revocation, and vehicle management.
 
 ---
 
