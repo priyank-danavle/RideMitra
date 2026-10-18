@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MapContainer,
   TileLayer,
   Marker,
   Popup,
@@ -8,8 +7,78 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet';
+import { LeafletContext, createLeafletContext } from '@react-leaflet/core';
 import L from 'leaflet';
 import { MapPin, Navigation } from 'lucide-react';
+
+interface SafeMapContainerProps {
+  center: [number, number];
+  zoom: number;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  className?: string;
+  scrollWheelZoom?: boolean;
+}
+
+interface LeafletContainerElement extends HTMLDivElement {
+  _leaflet_id?: number;
+}
+
+/**
+ * Resilient Leaflet map container that safely manages Leaflet initialization & teardown,
+ * preventing the "Map container is already initialized" error during React 18 StrictMode
+ * simulated unmounts, hot reloads, and component remounts.
+ */
+export const SafeMapContainer: React.FC<SafeMapContainerProps> = ({
+  center,
+  zoom,
+  children,
+  style,
+  className,
+  scrollWheelZoom = false,
+}) => {
+  const containerRef = useRef<LeafletContainerElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const [context, setContext] = useState<ReturnType<typeof createLeafletContext> | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Guard: Clean up any stale internal Leaflet ID attached to the DOM node before initializing
+    if (container._leaflet_id) {
+      delete container._leaflet_id;
+    }
+
+    if (!mapInstanceRef.current) {
+      const map = new L.Map(container, {
+        scrollWheelZoom,
+      });
+      map.setView(center, zoom);
+      mapInstanceRef.current = map;
+      setContext(createLeafletContext(map));
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      if (container && container._leaflet_id) {
+        delete container._leaflet_id;
+      }
+      setContext(null);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} style={style} className={className}>
+      {context ? (
+        <LeafletContext.Provider value={context}>{children}</LeafletContext.Provider>
+      ) : null}
+    </div>
+  );
+};
 
 export interface LatLng {
   lat: number;
@@ -198,7 +267,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
       }}
     >
-      <MapContainer
+      <SafeMapContainer
         center={defaultCenter}
         zoom={9}
         scrollWheelZoom={false}
@@ -354,7 +423,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             }}
           />
         ) : null}
-      </MapContainer>
+      </SafeMapContainer>
 
       {/* Editing Hint Overlay */}
       {editable && (

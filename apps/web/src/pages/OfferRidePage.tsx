@@ -683,7 +683,10 @@ export const OfferRidePage: React.FC = () => {
                     </div>
                   </div>
 
-                  <MapErrorBoundary fallbackText="Route map preview temporarily unavailable. You can still publish your ride.">
+                  <MapErrorBoundary
+                    resetKey={`${origin}-${destination}`}
+                    fallbackText="Route map preview temporarily unavailable. You can still publish your ride."
+                  >
                     <RouteMap
                       origin={
                         pickupCoords

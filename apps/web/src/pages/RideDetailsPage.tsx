@@ -484,7 +484,10 @@ export const RideDetailsPage: React.FC = () => {
                 />
               </div>
 
-              <MapErrorBoundary fallbackText="Route map preview temporarily unavailable. All booking actions remain active.">
+              <MapErrorBoundary
+                resetKey={ride.id}
+                fallbackText="Route map preview temporarily unavailable. All booking actions remain active."
+              >
                 <RouteMap
                   origin={
                     pickupCoords

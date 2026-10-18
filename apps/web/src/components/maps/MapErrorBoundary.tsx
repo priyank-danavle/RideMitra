@@ -1,14 +1,16 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
   fallbackText?: string;
   height?: string | number;
+  resetKey?: unknown;
 }
 
 interface State {
   hasError: boolean;
+  error?: Error;
 }
 
 export class MapErrorBoundary extends Component<Props, State> {
@@ -17,13 +19,23 @@ export class MapErrorBoundary extends Component<Props, State> {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.warn('[MapErrorBoundary] Map component encountered an error:', error, errorInfo);
   }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && this.props.resetKey !== prevProps.resetKey) {
+      this.setState({ hasError: false, error: undefined });
+    }
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: undefined });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -50,6 +62,23 @@ export class MapErrorBoundary extends Component<Props, State> {
           <span style={{ fontSize: '0.8rem', marginTop: '0.25rem', opacity: 0.8 }}>
             Core ride details and bookings remain unaffected.
           </span>
+          <button
+            type="button"
+            onClick={this.handleRetry}
+            className="btn btn-outline btn-sm"
+            style={{
+              marginTop: '0.75rem',
+              fontSize: '0.75rem',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-md, 6px)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+            }}
+          >
+            <RefreshCw size={12} />
+            Retry Map
+          </button>
         </div>
       );
     }
@@ -57,3 +86,4 @@ export class MapErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+

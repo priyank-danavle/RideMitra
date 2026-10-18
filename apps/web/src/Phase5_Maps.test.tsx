@@ -1,9 +1,11 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { OfferRidePage } from './pages/OfferRidePage';
 import { RideDetailsPage } from './pages/RideDetailsPage';
+import { RouteMap } from './components/maps/RouteMap';
 import { RouteMetricsBadge } from './components/maps/RouteMetricsBadge';
 import { MapErrorBoundary } from './components/maps/MapErrorBoundary';
 import { fetchOsrmRoute } from './lib/osrm';
@@ -137,6 +139,68 @@ describe('Phase 5.3 Free Maps & Location Integration (Leaflet + OSM + OSRM)', ()
       expect(
         screen.getByText(/Core ride details and bookings remain unaffected/i),
       ).toBeInTheDocument();
+
+      warnSpy.mockRestore();
+    });
+
+    it('resets error state when resetKey changes', () => {
+      let shouldThrow = true;
+      const ProblematicChild = () => {
+        if (shouldThrow) {
+          throw new Error('Initial crash');
+        }
+        return <div>Recovered Map Content</div>;
+      };
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const { rerender } = render(
+        <MapErrorBoundary resetKey="key-1" fallbackText="Map error fallback">
+          <ProblematicChild />
+        </MapErrorBoundary>,
+      );
+
+      expect(screen.getByText('Map error fallback')).toBeInTheDocument();
+
+      // Now heal the child and change the resetKey
+      shouldThrow = false;
+      rerender(
+        <MapErrorBoundary resetKey="key-2" fallbackText="Map error fallback">
+          <ProblematicChild />
+        </MapErrorBoundary>,
+      );
+
+      expect(screen.getByText('Recovered Map Content')).toBeInTheDocument();
+      expect(screen.queryByText('Map error fallback')).not.toBeInTheDocument();
+
+      warnSpy.mockRestore();
+    });
+
+    it('resets error state when user clicks Retry Map button', () => {
+      let shouldThrow = true;
+      const ProblematicChild = () => {
+        if (shouldThrow) {
+          throw new Error('Initial crash');
+        }
+        return <div>Recovered Map Content</div>;
+      };
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      render(
+        <MapErrorBoundary fallbackText="Map error fallback">
+          <ProblematicChild />
+        </MapErrorBoundary>,
+      );
+
+      expect(screen.getByText('Map error fallback')).toBeInTheDocument();
+
+      // Now heal the child and click Retry Map
+      shouldThrow = false;
+      fireEvent.click(screen.getByRole('button', { name: /Retry Map/i }));
+
+      expect(screen.getByText('Recovered Map Content')).toBeInTheDocument();
+      expect(screen.queryByText('Map error fallback')).not.toBeInTheDocument();
 
       warnSpy.mockRestore();
     });
@@ -396,4 +460,46 @@ describe('Phase 5.3 Free Maps & Location Integration (Leaflet + OSM + OSRM)', ()
       expect(screen.getByText('SG Highway Iscon')).toBeInTheDocument();
     });
   });
+
+  describe('RouteMap Leaflet Lifecycle & StrictMode Regression', () => {
+    it('mounts cleanly inside React.StrictMode without throwing "Map container is already initialized"', () => {
+      expect(() => {
+        render(
+          <React.StrictMode>
+            <RouteMap
+              origin={{ lat: 21.1702, lng: 72.8311, label: 'Surat' }}
+              destination={{ lat: 23.0225, lng: 72.5714, label: 'Ahmedabad' }}
+            />
+          </React.StrictMode>,
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('OpenStreetMap')).toBeInTheDocument();
+    });
+
+    it('handles multiple unmount and remount cycles cleanly', () => {
+      const { unmount } = render(
+        <RouteMap
+          origin={{ lat: 21.1702, lng: 72.8311, label: 'Surat' }}
+          destination={{ lat: 23.0225, lng: 72.5714, label: 'Ahmedabad' }}
+        />,
+      );
+
+      // Unmount the first instance
+      expect(() => unmount()).not.toThrow();
+
+      // Remount a second instance
+      expect(() => {
+        render(
+          <RouteMap
+            origin={{ lat: 19.076, lng: 72.8777, label: 'Mumbai' }}
+            destination={{ lat: 18.5204, lng: 73.8567, label: 'Pune' }}
+          />,
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('OpenStreetMap')).toBeInTheDocument();
+    });
+  });
 });
+
