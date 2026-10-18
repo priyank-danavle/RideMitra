@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
@@ -10,7 +11,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
-const envSchema = z.object({
+export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z
     .string()
@@ -34,6 +35,20 @@ const envSchema = z.object({
   DB_NAME: z.string().default('ridemitra_dev'),
   DB_USER: z.string().default('ridemitra_user'),
   DB_PASSWORD: z.string().default('ridemitra_dev_password'),
+  DB_SSL: z
+    .enum(['true', 'false', '1', '0'])
+    .default('false')
+    .transform((val) => val === 'true' || val === '1'),
+  DB_AUTO_CREATE: z
+    .enum(['true', 'false', '1', '0'])
+    .default('false')
+    .transform((val) => val === 'true' || val === '1'),
+  DB_CA_PATH: z
+    .string()
+    .optional()
+    .refine((filePath) => !filePath || fs.existsSync(filePath), {
+      message: 'DB_CA_PATH file does not exist on filesystem',
+    }),
 
   // Auth Configuration
   AUTH_JWT_SECRET: z
@@ -66,6 +81,9 @@ export const config = {
     database: parsedEnv.DB_NAME,
     user: parsedEnv.DB_USER,
     password: parsedEnv.DB_PASSWORD,
+    ssl: parsedEnv.DB_SSL,
+    autoCreate: parsedEnv.DB_AUTO_CREATE,
+    caPath: parsedEnv.DB_CA_PATH,
   },
   auth: {
     jwtSecret: parsedEnv.AUTH_JWT_SECRET,

@@ -1,5 +1,29 @@
+import fs from 'fs';
 import mysql from 'mysql2/promise';
 import { config } from '../config/index.js';
+
+/**
+ * Builds verified SSL/TLS options for mysql2 connection pool
+ */
+export function buildSslOptions(isSsl: boolean, caPath?: string): mysql.SslOptions | undefined {
+  if (!isSsl) {
+    return undefined;
+  }
+
+  let caContent: string | undefined;
+  if (caPath) {
+    if (!fs.existsSync(caPath)) {
+      throw new Error(`CA certificate file not found at path: ${caPath}`);
+    }
+    caContent = fs.readFileSync(caPath, 'utf-8');
+  }
+
+  return {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true,
+    ...(caContent ? { ca: caContent } : {}),
+  };
+}
 
 export const pool = mysql.createPool({
   host: config.database.host,
@@ -13,6 +37,7 @@ export const pool = mysql.createPool({
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   namedPlaceholders: true,
+  ssl: buildSslOptions(config.database.ssl, config.database.caPath),
 });
 
 /**
@@ -56,7 +81,11 @@ export async function testDbConnection(): Promise<boolean> {
     return Array.isArray(rows) && rows.length > 0;
   } catch (error) {
     if (!config.isTest) {
-      console.error('Database connection test failed:', error);
+      const err = error as { code?: string; message?: string };
+      const safeMessage = (err?.message || 'Database connection error')
+        .replace(/(password=)[^&; ]+/gi, '$1[REDACTED]')
+        .replace(/:([^@/:]+)@/g, ':[REDACTED]@');
+      console.error(`Database connection test failed [${err?.code || 'DB_ERROR'}]:`, safeMessage);
     }
     return false;
   }
