@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Car,
+  PlusCircle,
+  Search,
+  User,
+  Calendar,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../lib/apiClient';
 import type { Vehicle } from '@ridemitra/shared';
@@ -42,7 +52,7 @@ export const DashboardPage: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '1rem',
+            gap: '1.5rem',
           }}
         >
           <div>
@@ -56,15 +66,27 @@ export const DashboardPage: React.FC = () => {
             >
               <span
                 className="badge"
-                style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#ffffff' }}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  color: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
               >
-                👤 {user?.role} Account
+                <User size={14} /> {user?.role} Account
               </span>
               <span
                 className="badge"
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#ffffff' }}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  color: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
               >
-                Phase 2 Active
+                <Sparkles size={14} /> Phase 3 Active
               </span>
             </div>
             <h1
@@ -77,22 +99,40 @@ export const DashboardPage: React.FC = () => {
               Welcome back, {user?.name}!
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1rem', maxWidth: '600px' }}>
-              Manage your verified profile, register your car or bike, and get ready to publish or
-              book rides.
+              Publish verified carpools and bikepools, explore commuter routes, or manage your
+              scheduled trips.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Link
-              to="/vehicles"
+              to="/offer-ride"
               className="btn"
               style={{
                 backgroundColor: '#ffffff',
                 color: 'var(--color-primary-dark)',
                 fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
               }}
             >
-              + Register Vehicle
+              <PlusCircle size={18} /> Offer a Ride
+            </Link>
+            <Link
+              to="/rides"
+              className="btn"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                color: '#ffffff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <Search size={18} /> Find Rides
             </Link>
           </div>
         </div>
@@ -107,6 +147,111 @@ export const DashboardPage: React.FC = () => {
           marginBottom: '3rem',
         }}
       >
+        {/* Offer a Ride Card */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-primary-light)',
+                color: 'var(--color-primary-dark)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <PlusCircle size={24} />
+            </div>
+            <span className="badge badge-primary">Driver Action</span>
+          </div>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Offer a Ride</h2>
+          <p
+            style={{
+              color: 'var(--color-text-muted)',
+              fontSize: '0.9rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            {vehicles.length === 0
+              ? 'Register a vehicle first to publish your carpool or bikepool route.'
+              : 'Publish city or intercity rides with departure times and available seats.'}
+          </p>
+          <Link
+            to={vehicles.length === 0 ? '/vehicles' : '/offer-ride'}
+            className="btn btn-primary btn-sm"
+            style={{
+              marginTop: 'auto',
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            {vehicles.length === 0 ? 'Register Vehicle First' : 'Publish Ride'}
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        {/* My Rides Card */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-surface-subtle)',
+                color: 'var(--color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Calendar size={24} />
+            </div>
+            <span className="badge badge-outline">Management</span>
+          </div>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>My Offered Rides</h2>
+          <p
+            style={{
+              color: 'var(--color-text-muted)',
+              fontSize: '0.9rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            Review upcoming schedules, manage passenger seats, or cancel offered rides.
+          </p>
+          <Link
+            to="/my-rides"
+            className="btn btn-outline btn-sm"
+            style={{
+              marginTop: 'auto',
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            Manage My Rides <ArrowRight size={14} />
+          </Link>
+        </div>
+
         {/* Vehicles Card */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div
@@ -117,7 +262,20 @@ export const DashboardPage: React.FC = () => {
               marginBottom: '1rem',
             }}
           >
-            <span style={{ fontSize: '2rem' }}>🚗</span>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-surface-subtle)',
+                color: 'var(--color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Car size={24} />
+            </div>
             <span className="badge badge-primary">
               {loading ? '...' : `${vehicles.length} Active`}
             </span>
@@ -137,9 +295,15 @@ export const DashboardPage: React.FC = () => {
           <Link
             to="/vehicles"
             className="btn btn-outline btn-sm"
-            style={{ marginTop: 'auto', alignSelf: 'flex-start' }}
+            style={{
+              marginTop: 'auto',
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
           >
-            Manage Vehicles →
+            Manage Vehicles <ArrowRight size={14} />
           </Link>
         </div>
 
@@ -153,7 +317,20 @@ export const DashboardPage: React.FC = () => {
               marginBottom: '1rem',
             }}
           >
-            <span style={{ fontSize: '2rem' }}>👤</span>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-surface-subtle)',
+                color: 'var(--color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <User size={24} />
+            </div>
             <span className="badge badge-outline">Account</span>
           </div>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Personal Profile</h2>
@@ -171,41 +348,15 @@ export const DashboardPage: React.FC = () => {
           <Link
             to="/profile"
             className="btn btn-outline btn-sm"
-            style={{ marginTop: 'auto', alignSelf: 'flex-start' }}
-          >
-            View & Edit Profile →
-          </Link>
-        </div>
-
-        {/* Ride Discovery Card */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
+              marginTop: 'auto',
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
               alignItems: 'center',
-              marginBottom: '1rem',
+              gap: '0.4rem',
             }}
           >
-            <span style={{ fontSize: '2rem' }}>🔍</span>
-            <span className="badge badge-outline">Search</span>
-          </div>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Find a Ride</h2>
-          <p
-            style={{
-              color: 'var(--color-text-muted)',
-              fontSize: '0.9rem',
-              marginBottom: '1.25rem',
-            }}
-          >
-            Explore city and intercity commute corridors across Gujarat and nearby hubs.
-          </p>
-          <Link
-            to="/"
-            className="btn btn-outline btn-sm"
-            style={{ marginTop: 'auto', alignSelf: 'flex-start' }}
-          >
-            Search Rides →
+            View & Edit Profile <ArrowRight size={14} />
           </Link>
         </div>
       </div>
@@ -222,15 +373,14 @@ export const DashboardPage: React.FC = () => {
         <div
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}
         >
-          <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
-          <h3 style={{ fontSize: '1.1rem' }}>Engineering Progress & Next Phase</h3>
+          <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} />
+          <h3 style={{ fontSize: '1.1rem' }}>Engineering Milestone: Phase 3 Active</h3>
         </div>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.6 }}>
-          You are currently experiencing{' '}
-          <strong>Phase 2 (Authentication, User Profiles & Vehicle Management)</strong>. Your
-          account credentials and vehicle records are secured in the MySQL database. In{' '}
-          <strong>Phase 3 (Ride Management & Search)</strong>, verified drivers will be able to
-          publish upcoming rides with departure schedules and available seats.
+          RideMitra now supports end-to-end <strong>Ride Management & Discovery</strong>. Drivers
+          with registered vehicles can publish upcoming routes with seat counts and pricing, while
+          commuters can filter, sort, and discover rides with MySQL-indexed queries and clean
+          responsive UI.
         </p>
       </div>
     </div>

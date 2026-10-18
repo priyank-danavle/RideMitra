@@ -160,3 +160,114 @@ export interface UpdateVehicleRequest {
   color?: string;
   capacity?: number;
 }
+
+/**
+ * Ride operational lifecycle status
+ */
+export type RideStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+/**
+ * Non-sensitive public profile of driver attached to published rides
+ */
+export interface DriverPublicProfile {
+  id: string;
+  name: string;
+  bio: string | null;
+  isVerified: boolean;
+  createdAt: string;
+}
+
+/**
+ * Non-sensitive vehicle summary attached to published rides
+ */
+export interface RideVehicleSummary {
+  id: string;
+  type: SpecificVehicleType;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+  capacity: number;
+  registrationNumber?: string;
+}
+
+/**
+ * Core Ride entity representing a published carpool or bikepool journey
+ */
+export interface Ride {
+  id: string;
+  driverId: string;
+  vehicleId: string;
+  type: RideType; // 'CITY' | 'INTERCITY'
+  origin: string;
+  destination: string;
+  pickupPoint: string | null;
+  dropoffPoint: string | null;
+  departureTime: string; // ISO 8601 string
+  totalSeats: number;
+  availableSeats: number;
+  pricePerSeat: number; // in INR
+  description: string | null;
+  status: RideStatus;
+  createdAt: string;
+  updatedAt: string;
+  driver?: DriverPublicProfile;
+  vehicle?: RideVehicleSummary;
+}
+
+/**
+ * Request payload to publish/offer a new ride
+ */
+export interface CreateRideRequest {
+  vehicleId: string;
+  type: RideType;
+  origin: string;
+  destination: string;
+  pickupPoint?: string | null;
+  dropoffPoint?: string | null;
+  departureTime: string;
+  availableSeats: number;
+  pricePerSeat?: number;
+  description?: string | null;
+}
+
+/**
+ * Request payload to update an eligible scheduled ride
+ */
+export interface UpdateRideRequest {
+  pickupPoint?: string | null;
+  dropoffPoint?: string | null;
+  departureTime?: string;
+  availableSeats?: number;
+  pricePerSeat?: number;
+  description?: string | null;
+}
+
+/**
+ * Filter and search parameters for ride discovery
+ */
+export interface RideSearchParams {
+  origin?: string;
+  destination?: string;
+  date?: string; // YYYY-MM-DD
+  type?: RideType;
+  vehicleType?: SpecificVehicleType | 'ALL';
+  minPrice?: number;
+  maxPrice?: number;
+  minSeats?: number;
+  sortBy?: 'departureTime' | 'price';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Generic paginated response envelope
+ */
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Sparkles, Search, PlusCircle } from 'lucide-react';
 import { SearchForm } from './SearchForm';
 
 export const Hero: React.FC = () => {
@@ -29,7 +31,7 @@ export const Hero: React.FC = () => {
       <div className="container" style={{ position: 'relative', zIndex: 1 }}>
         <div
           style={{
-            maxWidth: '800px',
+            maxWidth: '820px',
             marginInline: 'auto',
             textAlign: 'center',
             marginBottom: '2.5rem',
@@ -42,7 +44,7 @@ export const Hero: React.FC = () => {
               gap: '0.5rem',
               backgroundColor: 'rgba(255, 255, 255, 0.12)',
               backdropFilter: 'blur(8px)',
-              padding: '0.35rem 1rem',
+              padding: '0.4rem 1.1rem',
               borderRadius: 'var(--radius-full)',
               fontSize: '0.875rem',
               fontWeight: 600,
@@ -50,7 +52,8 @@ export const Hero: React.FC = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
             }}
           >
-            <span>✨ Smart Shared Mobility</span>
+            <Sparkles size={15} style={{ color: '#2dd4bf' }} />
+            <span>Smart Shared Mobility</span>
             <span style={{ opacity: 0.6 }}>•</span>
             <span>City & Intercity</span>
           </div>
@@ -79,8 +82,8 @@ export const Hero: React.FC = () => {
             }}
           >
             Connect with verified drivers and riders travelling along your route. Share fuel
-            expenses, beat peak traffic, and reduce carbon emissions across Gujarat's busiest
-            commute corridors.
+            expenses, beat peak traffic, and reduce carbon emissions across regional commute
+            corridors.
           </p>
 
           <div
@@ -92,21 +95,26 @@ export const Hero: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <a
-              href="#search"
+            <Link
+              to="/rides"
               className="btn btn-primary"
               style={{
                 backgroundColor: '#ffffff',
                 color: 'var(--color-primary-dark)',
                 fontSize: '1rem',
                 boxShadow: 'var(--shadow-lg)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.5rem',
               }}
             >
+              <Search size={18} />
               Find a Ride Now
-            </a>
-            <a
+            </Link>
+            <Link
               id="offer-ride"
-              href="#offer-ride-section"
+              to="/offer-ride"
               className="btn"
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -114,10 +122,15 @@ export const Hero: React.FC = () => {
                 border: '1px solid rgba(255, 255, 255, 0.3)',
                 backdropFilter: 'blur(4px)',
                 fontSize: '1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.5rem',
               }}
             >
-              + Offer a Ride (Driver)
-            </a>
+              <PlusCircle size={18} />
+              Offer a Ride (Driver)
+            </Link>
           </div>
         </div>
 

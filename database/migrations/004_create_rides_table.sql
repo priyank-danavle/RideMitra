@@ -1,0 +1,25 @@
+-- Migration 004: Create rides table for ride publishing, discovery, and management
+CREATE TABLE IF NOT EXISTS rides (
+  id VARCHAR(36) PRIMARY KEY,
+  driver_id VARCHAR(36) NOT NULL,
+  vehicle_id VARCHAR(36) NOT NULL,
+  type ENUM('CITY', 'INTERCITY') NOT NULL DEFAULT 'INTERCITY',
+  origin VARCHAR(100) NOT NULL,
+  destination VARCHAR(100) NOT NULL,
+  pickup_point VARCHAR(255) DEFAULT NULL,
+  dropoff_point VARCHAR(255) DEFAULT NULL,
+  departure_time DATETIME NOT NULL,
+  total_seats TINYINT UNSIGNED NOT NULL,
+  available_seats TINYINT UNSIGNED NOT NULL,
+  price_per_seat DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  description TEXT DEFAULT NULL,
+  status ENUM('SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'SCHEDULED',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_rides_driver FOREIGN KEY (driver_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rides_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE RESTRICT,
+  INDEX idx_rides_discovery (status, departure_time),
+  INDEX idx_rides_route (origin, destination, departure_time),
+  INDEX idx_rides_driver (driver_id, departure_time),
+  INDEX idx_rides_vehicle (vehicle_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

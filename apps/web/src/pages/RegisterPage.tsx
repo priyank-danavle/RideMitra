@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { UserPlus, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../lib/apiClient';
 
@@ -84,11 +85,10 @@ export const RegisterPage: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.5rem',
               marginBottom: '1rem',
             }}
           >
-            🚀
+            <UserPlus size={24} style={{ color: 'var(--color-primary-dark)' }} />
           </div>
           <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Create Your Account</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
@@ -107,9 +107,13 @@ export const RegisterPage: React.FC = () => {
               fontSize: '0.875rem',
               fontWeight: 500,
               marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            ⚠️ {error}
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
         )}
 

@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
 
 export const SafetyBanner: React.FC = () => {
   return (
@@ -21,9 +23,13 @@ export const SafetyBanner: React.FC = () => {
                 backgroundColor: 'rgba(255, 255, 255, 0.15)',
                 color: '#ffffff',
                 marginBottom: '1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
               }}
             >
-              🔒 Safety & Community Trust
+              <ShieldCheck size={16} style={{ color: '#5eead4' }} />
+              Safety & Community Trust
             </span>
             <h2
               style={{
@@ -107,25 +113,29 @@ export const SafetyBanner: React.FC = () => {
             </div>
 
             <div id="offer-ride-section" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <a
-                href="#search"
+              <Link
+                to="/rides"
                 className="btn btn-primary"
-                style={{ backgroundColor: 'var(--color-primary)' }}
+                style={{
+                  backgroundColor: 'var(--color-primary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
               >
-                Find Your Route
-              </a>
-              <button
-                type="button"
+                <span>Find Your Route</span>
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                to="/offer-ride"
                 className="btn btn-outline"
-                style={{ borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff' }}
-                onClick={() => {
-                  alert(
-                    'Phase 1 Notice: Driver onboarding and vehicle registration will be unlocked in Phase 2 (Authentication & User Profiles).',
-                  );
+                style={{
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#ffffff',
                 }}
               >
                 Become a Verified Driver
-              </button>
+              </Link>
             </div>
           </div>
         </div>

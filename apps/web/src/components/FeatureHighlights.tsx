@@ -1,4 +1,5 @@
 import React from 'react';
+import { Car, Bike, CheckCircle2, ShieldCheck, Scale, Leaf } from 'lucide-react';
 
 export const FeatureHighlights: React.FC = () => {
   return (
@@ -34,11 +35,10 @@ export const FeatureHighlights: React.FC = () => {
                 height: '56px',
                 borderRadius: 'var(--radius-lg)',
                 backgroundColor: 'var(--color-primary-light)',
-                fontSize: '1.75rem',
                 marginBottom: '1.25rem',
               }}
             >
-              🚗
+              <Car size={28} style={{ color: 'var(--color-primary)' }} />
             </div>
             <div
               style={{
@@ -70,16 +70,16 @@ export const FeatureHighlights: React.FC = () => {
               }}
             >
               <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ color: 'var(--color-primary)' }}>✓</span> Ideal for 2–4 passenger
-                groups
+                <CheckCircle2 size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                <span>Ideal for 2–4 passenger groups</span>
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ color: 'var(--color-primary)' }}>✓</span> Trunk/boot space for
-                intercity luggage
+                <CheckCircle2 size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                <span>Trunk/boot space for intercity luggage</span>
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ color: 'var(--color-primary)' }}>✓</span> High-frequency highway
-                corridors
+                <CheckCircle2 size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                <span>High-frequency highway corridors</span>
               </li>
             </ul>
           </div>
@@ -95,11 +95,10 @@ export const FeatureHighlights: React.FC = () => {
                 height: '56px',
                 borderRadius: 'var(--radius-lg)',
                 backgroundColor: '#dbeafe',
-                fontSize: '1.75rem',
                 marginBottom: '1.25rem',
               }}
             >
-              🏍️
+              <Bike size={28} style={{ color: 'var(--color-accent)' }} />
             </div>
             <div
               style={{
@@ -137,16 +136,16 @@ export const FeatureHighlights: React.FC = () => {
               }}
             >
               <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ color: 'var(--color-accent)' }}>✓</span> Single pillion seat, quick
-                coordination
+                <CheckCircle2 size={16} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
+                <span>Single pillion seat, quick coordination</span>
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ color: 'var(--color-accent)' }}>✓</span> Cut travel time in peak
-                urban rush hours
+                <CheckCircle2 size={16} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
+                <span>Cut travel time in peak urban rush hours</span>
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ color: 'var(--color-accent)' }}>✓</span> Maximum cost savings for
-                daily commuters
+                <CheckCircle2 size={16} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
+                <span>Maximum cost savings for daily commuters</span>
               </li>
             </ul>
           </div>
@@ -161,25 +160,66 @@ export const FeatureHighlights: React.FC = () => {
           }}
         >
           <div style={{ padding: '1.25rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🛡️</div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '54px',
+                height: '54px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--color-primary-light)',
+                marginBottom: '1rem',
+              }}
+            >
+              <ShieldCheck size={28} style={{ color: 'var(--color-primary)' }} />
+            </div>
             <h4 style={{ fontSize: '1.1rem', marginBottom: '0.4rem' }}>Verified Community</h4>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
               Driver license and government ID validation to cultivate trust and mutual safety.
             </p>
           </div>
+
           <div style={{ padding: '1.25rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>⚖️</div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '54px',
+                height: '54px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: '#dbeafe',
+                marginBottom: '1rem',
+              }}
+            >
+              <Scale size={28} style={{ color: 'var(--color-accent)' }} />
+            </div>
             <h4 style={{ fontSize: '1.1rem', marginBottom: '0.4rem' }}>
               Non-Commercial Cost Sharing
             </h4>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
               Fairly split fuel and toll expenditures without commercial surge pricing.
             </p>
           </div>
+
           <div style={{ padding: '1.25rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🌱</div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '54px',
+                height: '54px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--color-success-bg)',
+                marginBottom: '1rem',
+              }}
+            >
+              <Leaf size={28} style={{ color: 'var(--color-success)' }} />
+            </div>
             <h4 style={{ fontSize: '1.1rem', marginBottom: '0.4rem' }}>Sustainable Urban Air</h4>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
               Fewer single-occupancy vehicles means reduced vehicular carbon emissions.
             </p>
           </div>

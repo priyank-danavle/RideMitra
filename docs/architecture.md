@@ -191,3 +191,68 @@ ridemitra/
   - `BIKE`: Strictly 1 passenger seat (driver + 1 pillion rider).
 - **Soft Deactivation:** `DELETE /api/v1/vehicles/:id` sets `is_active = FALSE`. Historical records remain intact for future Phase 3/4 ride references and audit trails.
 - **Verification Integrity:** All vehicles default `is_verified = FALSE` and cannot be self-verified through the API.
+
+---
+
+## 6. Phase 3 Architecture: Ride Management, Discovery & Performance Indexing
+
+### 6.1 Ride Lifecycle & State Transitions
+
+```
+                    ┌────────────────────────────┐
+                    │         SCHEDULED          │ ◄── Ride published (departure in future)
+                    └──────────────┬─────────────┘
+                                   │
+                    ┌──────────────┴─────────────┐
+                    ▼                            ▼
+     ┌────────────────────────────┐  ┌────────────────────────────┐
+     │           ACTIVE           │  │         CANCELLED          │
+     │      (Trip in progress)    │  │    (Cancelled by driver)   │
+     └──────────────┬─────────────┘  └────────────────────────────┘
+                    │
+                    ▼
+     ┌────────────────────────────┐
+     │         COMPLETED          │
+     │      (Trip finished)       │
+     └────────────────────────────┘
+```
+
+- **Creation Invariants:**
+  - Driver must own the associated vehicle (`vehicle.user_id = driver.id`).
+  - Vehicle must be active (`is_active = TRUE`).
+  - Available seats must not exceed the vehicle's capacity.
+  - Bikepool rides (`BIKE`) are strictly restricted to 1 passenger seat.
+  - Departure time must be in the future (`departure_time > NOW()`).
+- **Cancellation Policy:**
+  - Drivers can only cancel rides in `SCHEDULED` status that they own.
+  - Cancelling an already cancelled or past ride is prevented.
+  - Cancelled rides are automatically filtered out from active passenger search queries.
+
+### 6.2 Discovery & Search Optimization
+
+To ensure fast search queries across thousands of active journeys, the database utilizes composite indexes:
+
+1. **`idx_rides_discovery (status, departure_time, available_seats)`**:
+   - Enables constant-time pruning of cancelled rides, past rides, and fully-booked rides (`status = 'SCHEDULED' AND departure_time >= NOW() AND available_seats >= 1`).
+2. **`idx_rides_route (origin, destination, status)`**:
+   - Accelerates exact-match city and corridor queries.
+3. **`idx_rides_driver (driver_id, status)`**:
+   - Powers driver dashboard queries and history lookups.
+4. **`idx_rides_vehicle (vehicle_id)`**:
+   - Maintains relational integrity and prevents orphaned rides when vehicles are queried.
+
+### 6.3 Privacy & Public vs Private Profile Boundaries
+
+- **Public Views (`/rides`, `/rides/:id`):**
+  - Return `DriverPublicProfile`: `id`, `name`, `bio`, `isVerified`, `createdAt`.
+  - Sensitive contact data (`email`, `phone`) is strictly stripped from API payloads to prevent scraping and harassment.
+  - Vehicle summaries expose `make`, `model`, `year`, `color`, `type`, and `capacity`.
+- **Private Views (`/my-rides`, `/profile`):**
+  - Only the authenticated driver can access full vehicle details, edit ride parameters, and perform cancellations.
+
+### 6.4 Professional UI Architecture
+
+- **Iconography System:** All raw unicode emojis are completely eliminated across the application in favor of `lucide-react` scalable SVG icons with standardized sizes (`14px`–`32px`).
+- **Micro-Animations:** Powered by `framer-motion` for page-level stagger effects, interactive card hover elevations, and smooth modal overlays with automatic `prefers-reduced-motion` compliance.
+- **Loading & Skeleton States:** Skeleton loaders reflect the exact structural geometry of cards and details, avoiding layout shifts (CLS).
+- **Responsive Layout:** Grid and flexbox layouts adapt smoothly from mobile viewport widths (360px) to widescreen desktop displays.

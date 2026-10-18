@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, MapPin, Calendar, Layers, Car, Bike, AlertCircle } from 'lucide-react';
 import type { VehicleType } from '@ridemitra/shared';
 import { POPULAR_CITIES } from '@ridemitra/shared';
 
@@ -10,6 +12,7 @@ interface SearchState {
 }
 
 export const SearchForm: React.FC = () => {
+  const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
 
   const [formData, setFormData] = useState<SearchState>({
@@ -19,8 +22,6 @@ export const SearchForm: React.FC = () => {
     vehicleType: 'ALL',
   });
 
-  const [submittedQuery, setSubmittedQuery] = useState<SearchState | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -40,9 +41,13 @@ export const SearchForm: React.FC = () => {
       return;
     }
 
-    setIsSearching(true);
-    setSubmittedQuery({ ...formData });
-    setIsSearching(false);
+    const query = new URLSearchParams();
+    query.set('origin', formData.source.trim());
+    query.set('destination', formData.destination.trim());
+    if (formData.date) query.set('date', formData.date);
+    if (formData.vehicleType !== 'ALL') query.set('vehicleType', formData.vehicleType);
+
+    navigate(`/rides?${query.toString()}`);
   };
 
   return (
@@ -72,21 +77,19 @@ export const SearchForm: React.FC = () => {
         >
           <legend className="visually-hidden">Choose vehicle mode</legend>
 
-          {(
-            [
-              { value: 'ALL', label: '🚗 🏍️ All Modes' },
-              { value: 'CAR', label: '🚗 Carpool Only' },
-              { value: 'BIKE', label: '🏍️ Bikepool Only' },
-            ] as const
-          ).map((mode) => (
+          {[
+            { value: 'ALL' as const, label: 'All Modes', icon: <Layers size={15} /> },
+            { value: 'CAR' as const, label: 'Carpool Only', icon: <Car size={15} /> },
+            { value: 'BIKE' as const, label: 'Bikepool Only', icon: <Bike size={15} /> },
+          ].map((mode) => (
             <label
               key={mode.value}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.4rem',
+                gap: '0.45rem',
                 cursor: 'pointer',
-                padding: '0.4rem 0.9rem',
+                padding: '0.45rem 1rem',
                 borderRadius: 'var(--radius-full)',
                 fontSize: '0.875rem',
                 fontWeight: 600,
@@ -114,120 +117,156 @@ export const SearchForm: React.FC = () => {
                 onChange={() => setFormData((prev) => ({ ...prev, vehicleType: mode.value }))}
                 className="visually-hidden"
               />
-              {mode.label}
+              {mode.icon}
+              <span>{mode.label}</span>
             </label>
           ))}
         </fieldset>
 
-        {/* Search Inputs Grid */}
+        {/* Inputs Grid */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '1rem',
-            alignItems: 'end',
           }}
         >
           {/* Source Input */}
-          <div
-            className="form-group"
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}
-          >
+          <div>
             <label
               htmlFor="source-input"
-              style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}
+              style={{
+                display: 'block',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--color-text)',
+                marginBottom: '0.35rem',
+              }}
             >
               From (Source)
             </label>
-            <input
-              id="source-input"
-              type="text"
-              placeholder="e.g. Surat or Vesu"
-              value={formData.source}
-              onChange={(e) => setFormData((prev) => ({ ...prev, source: e.target.value }))}
-              list="popular-cities-source"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                minHeight: '48px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text)',
-              }}
-            />
-            <datalist id="popular-cities-source">
-              {POPULAR_CITIES.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="source-input"
+                type="text"
+                list="popular-cities-source"
+                value={formData.source}
+                onChange={(e) => setFormData((prev) => ({ ...prev, source: e.target.value }))}
+                placeholder="e.g. Surat, Vesu, Adajan"
+                className="input"
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  paddingLeft: '2.5rem',
+                  fontSize: '0.95rem',
+                }}
+              />
+              <MapPin
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-muted)',
+                }}
+              />
+              <datalist id="popular-cities-source">
+                {POPULAR_CITIES.map((city) => (
+                  <option key={city} value={city} />
+                ))}
+              </datalist>
+            </div>
           </div>
 
           {/* Destination Input */}
-          <div
-            className="form-group"
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}
-          >
+          <div>
             <label
               htmlFor="destination-input"
-              style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}
+              style={{
+                display: 'block',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--color-text)',
+                marginBottom: '0.35rem',
+              }}
             >
               To (Destination)
             </label>
-            <input
-              id="destination-input"
-              type="text"
-              placeholder="e.g. Ahmedabad or SG Highway"
-              value={formData.destination}
-              onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value }))}
-              list="popular-cities-destination"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                minHeight: '48px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text)',
-              }}
-            />
-            <datalist id="popular-cities-destination">
-              {POPULAR_CITIES.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="destination-input"
+                type="text"
+                list="popular-cities-dest"
+                value={formData.destination}
+                onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value }))}
+                placeholder="e.g. Ahmedabad, SG Highway"
+                className="input"
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  paddingLeft: '2.5rem',
+                  fontSize: '0.95rem',
+                }}
+              />
+              <MapPin
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-muted)',
+                }}
+              />
+              <datalist id="popular-cities-dest">
+                {POPULAR_CITIES.map((city) => (
+                  <option key={city} value={city} />
+                ))}
+              </datalist>
+            </div>
           </div>
 
           {/* Date Input */}
-          <div
-            className="form-group"
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}
-          >
+          <div>
             <label
               htmlFor="date-input"
-              style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}
+              style={{
+                display: 'block',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--color-text)',
+                marginBottom: '0.35rem',
+              }}
             >
               Date of Travel
             </label>
-            <input
-              id="date-input"
-              type="date"
-              min={today}
-              value={formData.date}
-              onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                minHeight: '48px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text)',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="date-input"
+                type="date"
+                min={today}
+                value={formData.date}
+                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+                className="input"
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  paddingLeft: '2.5rem',
+                  fontSize: '0.95rem',
+                }}
+              />
+              <Calendar
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-muted)',
+                }}
+              />
+            </div>
           </div>
 
           {/* Submit Button */}
@@ -235,15 +274,18 @@ export const SearchForm: React.FC = () => {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isSearching}
               style={{
                 width: '100%',
                 height: '48px',
                 fontSize: '1rem',
-                letterSpacing: '0.01em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
               }}
             >
-              {isSearching ? 'Searching...' : '🔍 Find Rides'}
+              <Search size={18} />
+              <span>Find Rides</span>
             </button>
           </div>
         </div>
@@ -260,46 +302,13 @@ export const SearchForm: React.FC = () => {
               color: 'var(--color-error)',
               fontSize: '0.875rem',
               fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            ⚠️ {formError}
-          </div>
-        )}
-
-        {/* Phase 1 Submission Feedback & Search State */}
-        {submittedQuery && !isSearching && (
-          <div
-            style={{
-              marginTop: '1.5rem',
-              padding: '1.25rem',
-              borderRadius: 'var(--radius-lg)',
-              backgroundColor: 'var(--color-surface-subtle)',
-              border: '1px solid var(--color-border)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <span className="badge badge-primary">Phase 1 Search Shell</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                Target: {submittedQuery.vehicleType}
-              </span>
-            </div>
-            <p style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: '0.4rem' }}>
-              Route: {submittedQuery.source} ➔ {submittedQuery.destination} ({submittedQuery.date})
-            </p>
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-              The client-side search query has been captured and validated. In Phase 1, no mock
-              rides are shown as real data. Live ride lookup connected to the MySQL relational
-              database will be implemented in <strong>Phase 3 (Ride Management & Search)</strong>.
-            </p>
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span>{formError}</span>
           </div>
         )}
       </form>

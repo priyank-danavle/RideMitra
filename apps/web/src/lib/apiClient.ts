@@ -162,4 +162,51 @@ export const apiClient = {
     request<{ message: string }>(`vehicles/${id}`, {
       method: 'DELETE',
     }),
+
+  // Ride Management & Search (Phase 3)
+  searchRides: (params: import('@ridemitra/shared').RideSearchParams) => {
+    const query = new URLSearchParams();
+    if (params.origin) query.set('origin', params.origin);
+    if (params.destination) query.set('destination', params.destination);
+    if (params.date) query.set('date', params.date);
+    if (params.type) query.set('type', params.type);
+    if (params.vehicleType && params.vehicleType !== 'ALL')
+      query.set('vehicleType', params.vehicleType);
+    if (params.minPrice !== undefined) query.set('minPrice', String(params.minPrice));
+    if (params.maxPrice !== undefined) query.set('maxPrice', String(params.maxPrice));
+    if (params.minSeats !== undefined) query.set('minSeats', String(params.minSeats));
+    if (params.sortBy) query.set('sortBy', params.sortBy);
+    if (params.sortOrder) query.set('sortOrder', params.sortOrder);
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+
+    const queryString = query.toString();
+    return request<import('@ridemitra/shared').PaginatedResponse<import('@ridemitra/shared').Ride>>(
+      `rides${queryString ? `?${queryString}` : ''}`,
+    );
+  },
+
+  getRideById: (id: string) => request<{ ride: import('@ridemitra/shared').Ride }>(`rides/${id}`),
+
+  createRide: (data: import('@ridemitra/shared').CreateRideRequest) =>
+    request<{ ride: import('@ridemitra/shared').Ride; message?: string }>('rides', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateRide: (id: string, data: import('@ridemitra/shared').UpdateRideRequest) =>
+    request<{ ride: import('@ridemitra/shared').Ride; message?: string }>(`rides/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  cancelRide: (id: string) =>
+    request<{ message: string }>(`rides/${id}/cancel`, {
+      method: 'POST',
+    }),
+
+  getMyRides: (status?: import('@ridemitra/shared').RideStatus | 'ALL') => {
+    const query = status && status !== 'ALL' ? `?status=${status}` : '';
+    return request<{ rides: import('@ridemitra/shared').Ride[] }>(`rides/my-rides${query}`);
+  },
 };

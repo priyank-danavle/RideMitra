@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CheckCircle2, AlertCircle, Edit3, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../lib/apiClient';
 
@@ -80,9 +81,13 @@ export const ProfilePage: React.FC = () => {
             fontSize: '0.9rem',
             fontWeight: 500,
             marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
           }}
         >
-          ✓ {successMsg}
+          <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+          <span>{successMsg}</span>
         </div>
       )}
 
@@ -97,9 +102,13 @@ export const ProfilePage: React.FC = () => {
             fontSize: '0.9rem',
             fontWeight: 500,
             marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
           }}
         >
-          ⚠️ {errorMsg}
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span>{errorMsg}</span>
         </div>
       )}
 
@@ -151,8 +160,9 @@ export const ProfilePage: React.FC = () => {
               type="button"
               onClick={() => setIsEditing(true)}
               className="btn btn-outline btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              ✏️ Edit Profile
+              <Edit3 size={15} /> Edit Profile
             </button>
           )}
         </div>
@@ -194,8 +204,16 @@ export const ProfilePage: React.FC = () => {
                 <label htmlFor="profile-email" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
                   Email Address
                 </label>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  🔒 Primary identifier (Cannot be changed)
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                  }}
+                >
+                  <Lock size={12} /> Primary identifier (Cannot be changed)
                 </span>
               </div>
               <input

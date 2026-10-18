@@ -4,22 +4,42 @@ import App from './App';
 
 describe('RideMitra Web Application Shell', () => {
   beforeEach(() => {
-    // Mock global fetch for HealthStatusBadge
+    // Reset route to root
+    window.history.pushState({}, '', '/');
+
+    // Mock global fetch for HealthStatusBadge and api requests
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: {
-            status: 'ok',
-            service: 'ridemitra-api',
-            version: '0.1.0',
-            timestamp: new Date().toISOString(),
-            uptimeSeconds: 42,
-            environment: 'test',
-          },
-        }),
+      vi.fn().mockImplementation(async (url: string) => {
+        if (typeof url === 'string' && url.includes('/api/v1/rides')) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: {
+                items: [],
+                total: 0,
+                page: 1,
+                limit: 10,
+                totalPages: 0,
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              status: 'ok',
+              service: 'ridemitra-api',
+              version: '0.1.0',
+              timestamp: new Date().toISOString(),
+              uptimeSeconds: 42,
+              environment: 'test',
+            },
+          }),
+        };
       }),
     );
   });
@@ -37,7 +57,7 @@ describe('RideMitra Web Application Shell', () => {
     const mitraElements = screen.getAllByText(/Mitra/i);
     expect(mitraElements.length).toBeGreaterThan(0);
 
-    const offerRideButtons = screen.getAllByText(/\+ Offer a Ride/i);
+    const offerRideButtons = screen.getAllByText(/Offer a Ride/i);
     expect(offerRideButtons.length).toBeGreaterThan(0);
   });
 
@@ -48,9 +68,9 @@ describe('RideMitra Web Application Shell', () => {
     expect(screen.getByLabelText(/To \(Destination\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Date of Travel/i)).toBeInTheDocument();
 
-    expect(screen.getByText(/🚗 🏍️ All Modes/i)).toBeInTheDocument();
-    expect(screen.getByText(/🚗 Carpool Only/i)).toBeInTheDocument();
-    expect(screen.getByText(/🏍️ Bikepool Only/i)).toBeInTheDocument();
+    expect(screen.getByText(/All Modes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Carpool Only/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bikepool Only/i)).toBeInTheDocument();
 
     expect(screen.getByRole('button', { name: /Find Rides/i })).toBeInTheDocument();
   });
@@ -66,7 +86,7 @@ describe('RideMitra Web Application Shell', () => {
     ).toBeInTheDocument();
   });
 
-  it('captures search input and displays Phase 1 feedback shell upon valid submission', async () => {
+  it('captures search input and navigates to ride discovery results upon valid submission', async () => {
     await renderApp();
 
     const sourceInput = screen.getByLabelText(/From \(Source\)/i);
@@ -78,11 +98,7 @@ describe('RideMitra Web Application Shell', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Phase 1 Search Shell/i)).toBeInTheDocument();
-      expect(screen.getByText(/Route: Surat ➔ Ahmedabad/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(/In Phase 1, no mock rides are shown as real data/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Discover Shared Rides/i)).toBeInTheDocument();
     });
   });
 
@@ -94,6 +110,6 @@ describe('RideMitra Web Application Shell', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Comfortable Intercity Highway Carpooling/i)).toBeInTheDocument();
     expect(screen.getByText(/Surat: Vesu ⇄ Adajan \/ Ring Road/i)).toBeInTheDocument();
-    expect(screen.getByText(/Surat ➔ Ahmedabad/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Ahmedabad/i).length).toBeGreaterThan(0);
   });
 });

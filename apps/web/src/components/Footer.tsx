@@ -1,4 +1,5 @@
 import React from 'react';
+import { Car } from 'lucide-react';
 import { HealthStatusBadge } from './HealthStatusBadge';
 
 export const Footer: React.FC = () => {
@@ -41,10 +42,9 @@ export const Footer: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#ffffff',
-                  fontSize: '1rem',
                 }}
               >
-                🚗
+                <Car size={18} />
               </div>
               <span
                 style={{

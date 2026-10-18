@@ -21,61 +21,55 @@ RideMitra operates strictly as a **non-commercial cost-sharing platform**; drive
 
 ---
 
-## 2. Current Project Phase: Phase 2 — Authentication, User Profiles & Vehicle Management
+## 2. Current Project Phase: Phase 3 — Ride Management, Search & Professional UI Revamp
 
-The project follows a disciplined [8-Phase Engineering Roadmap](docs/roadmap.md). We have completed **Phase 1** and **Phase 2**.
+The project follows a disciplined [8-Phase Engineering Roadmap](docs/roadmap.md). We have completed **Phase 1**, **Phase 2**, and **Phase 3**.
 
-### Implemented in Phase 2:
+### Implemented in Phase 3:
 
 - [x] **Relational Schema & Migrations (`database/migrations`):**
-  - `001_create_users_table.sql`: Users table with UUID primary keys, normalized lowercase email unique constraint, bcrypt password hashes, roles (`USER`, `ADMIN`), and profile fields.
-  - `002_create_sessions_table.sql`: Server-managed sessions table storing SHA-256 hashed JWT tokens for immediate server-side revocation on logout, automatic expiry tracking, and client metadata.
-  - `003_create_vehicles_table.sql`: Vehicles table with foreign key to users, vehicle type (`CAR`, `BIKE`), seating capacity constraints, soft-deactivation flag (`is_active`), and unverified default status (`is_verified = FALSE`).
-  - Automated migration runner (`database/migrate.ts`) with `npm run db:migrate` and `npm run db:reset`.
-- [x] **Secure Authentication Subsystem (`apps/api`):**
-  - Registration with duplicate email rejection (409 Conflict) and generic credentials error (401 Unauthorized) to mitigate account enumeration.
-  - Password hashing using `bcryptjs` with 12 salt rounds; passwords never stored or logged in plaintext.
-  - Dual authentication strategy: Secure `HttpOnly`, `SameSite=Lax` cookies with seamless fallback to `Authorization: Bearer <token>` for non-browser/REST clients.
-  - Express rate limiting on auth endpoints (`5 requests per 15 minutes` for register/login) to mitigate brute-force attacks.
-  - In-database session revocation on logout.
-- [x] **User Profiles & Mass-Assignment Protection:**
-  - `GET /api/v1/auth/me` and `GET /api/v1/users/profile` returning non-sensitive fields only.
-  - `PATCH /api/v1/users/profile` protected with Zod `.strict()` validation to explicitly block unauthorized elevation of roles, verification status, or IDs.
-- [x] **Vehicle Management & Ownership Isolation:**
-  - Full CRUD operations: Create, List, Retrieve, Update, and Soft-Deactivate (`DELETE /api/v1/vehicles/:id`).
-  - Strict vehicle capacity validation: Bikepool capacity is strictly 1 passenger seat; Carpool is 1–8 passenger seats.
-  - Strict tenant isolation: Every query scopes to `user_id = ?`, preventing cross-user vehicle inspection or modification (404/403).
-  - Explicit unverified badge/state: Vehicles default to unverified pending future document verification workflows.
-- [x] **Polished Frontend Experience (`apps/web`):**
-  - React Router v6 pages: `RegisterPage`, `LoginPage`, `DashboardPage`, `ProfilePage`, `VehiclesPage`.
-  - Accessible forms with real-time validation, loading spinners, and clear server error handling.
-  - Dynamic `Navbar` reflecting authenticated state, active user chip, and logout trigger.
-  - `ProtectedRoute` component safeguarding authenticated views.
-- [x] **End-to-End Automated Testing:**
-  - 31 backend integration tests (`auth.test.ts`, `vehicles.test.ts`, `health.test.ts`).
-  - 10 frontend unit & component tests (`App.test.tsx`, `Phase2.test.tsx`).
-  - Total: 41 automated tests passing across the monorepo.
+  - `004_create_rides_table.sql`: Rides table with driver and vehicle foreign keys, route definitions (`origin`, `destination`, `pickup_point`, `dropoff_point`), departure time, seat allocation, pricing in INR, lifecycle status (`SCHEDULED`, `ACTIVE`, `COMPLETED`, `CANCELLED`), and composite performance indexes (`idx_rides_discovery`, `idx_rides_route`, `idx_rides_driver`, `idx_rides_vehicle`).
+- [x] **Ride Management REST API Subsystem (`apps/api`):**
+  - `POST /api/v1/rides`: Publish carpool/bikepool journeys with vehicle ownership check, seating capacity check (Bike = strictly 1 seat; Car = 1-8 seats), and future departure validation.
+  - `GET /api/v1/rides`: Multi-parameter ride search & discovery engine with origin, destination, date, vehicleType, and rideType filtering, sorting by departure time or price, and database-level pagination.
+  - `GET /api/v1/rides/:id`: Public ride details with route timeline, public driver profile (name, bio, verified badge; non-sensitive), and vehicle information.
+  - `GET /api/v1/rides/driver/mine`: Driver ride dashboard endpoint retrieving all published rides categorized into active, past, and cancelled.
+  - `PATCH /api/v1/rides/:id`: Edit mutable parameters (pickup point, dropoff point, price per seat, notes) for scheduled rides owned by the authenticated driver.
+  - `POST /api/v1/rides/:id/cancel`: Cancellation endpoint transitioning scheduled rides to `CANCELLED` status with validation preventing cancellation of already completed or cancelled trips.
+- [x] **Complete Professional UI Revamp (`apps/web`):**
+  - **Zero Emoji Iconography:** Replaced all emojis across the entire web application (Navbar, Hero, SearchForm, FeatureHighlights, CommuteSections, Footer, SafetyBanner, Dashboard, Login, Register, Profile, Vehicles) with standard scalable `lucide-react` SVG icons.
+  - **Framer Motion Micro-Animations:** Staggered list animations, smooth modal overlays, interactive card hover states, and seamless tab transitions with `prefers-reduced-motion` compliance.
+  - **Skeleton Loaders & Empty States:** Realistic skeleton loaders for search results and ride details avoiding layout shift (CLS), plus actionable empty states for search queries and ride tabs.
+  - **New Phase 3 Screens:**
+    - `/rides`: Search, multi-facet filtering, sorting, pagination, and animated ride cards.
+    - `/offer-ride`: Multi-step publishing wizard with vehicle auto-fill, capacity limits, and route guidelines.
+    - `/rides/:id`: Complete trip overview with corridor timeline, driver trust card, and vehicle specifications.
+    - `/my-rides`: Driver ride management with Upcoming/Past/Cancelled tabs, Edit Modal, and Cancel Confirmation Modal.
+- [x] **Automated Test Coverage:**
+  - 43 backend integration tests (`rides.test.ts`, `vehicles.test.ts`, `auth.test.ts`, `health.test.ts`).
+  - 17 frontend unit & component tests (`App.test.tsx`, `Phase2.test.tsx`, `Phase3.test.tsx`).
+  - Total: **60 automated tests** passing across the monorepo.
 
 ### Intentionally Deferred to Future Phases:
 
-- ❌ **Ride Publishing, Routes & Public Ride Search:** Scheduled for Phase 3.
 - ❌ **Booking & Concurrency-Safe Seat Allocation:** Scheduled for Phase 4.
 - ❌ **GraphQL & Mapping/Route Integrations:** Scheduled for Phase 5.
 - ❌ **Real Government ID & Vehicle Verification Workflows:** Scheduled for Phase 5/6.
+- ❌ **In-app Chat & Passenger Ratings:** Scheduled for Phase 6.
 
 ---
 
 ## 3. Technology Stack
 
-| Layer            | Technologies                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| **Monorepo**     | npm Workspaces, TypeScript 5, Concurrently                                            |
-| **Frontend**     | React 18, TypeScript, Vite, React Router 6, Modern CSS (Design Tokens, Glassmorphism) |
-| **Backend API**  | Node.js (v20/v22 LTS), Express.js, Zod, Bcrypt, JWT, Cookie-Parser, Helmet, CORS      |
-| **Database**     | MySQL 8.0 (`mysql2` connection pool, SQL migrations, Docker Compose)                  |
-| **Testing**      | Vitest, Supertest, React Testing Library, JSDOM (41 tests passing)                    |
-| **Code Quality** | ESLint 9, Prettier, TypeScript Strict Mode                                            |
-| **CI / CD**      | GitHub Actions with automated MySQL 8.0 service & migrations container                |
+| Layer            | Technologies                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| **Monorepo**     | npm Workspaces, TypeScript 5, Concurrently                                                  |
+| **Frontend**     | React 18, TypeScript, Vite, React Router 6, Framer Motion, Lucide React, Modern CSS Tokens  |
+| **Backend API**  | Node.js (v20/v22 LTS), Express.js, Zod, Bcrypt, JWT, Cookie-Parser, Helmet, CORS            |
+| **Database**     | MySQL 8.0 (`mysql2` connection pool, SQL migrations, composite performance indexes, Docker) |
+| **Testing**      | Vitest, Supertest, React Testing Library, JSDOM (60 tests passing)                          |
+| **Code Quality** | ESLint 9, Prettier, TypeScript Strict Mode                                                  |
+| **CI / CD**      | GitHub Actions with automated MySQL 8.0 service & migrations container                      |
 
 ---
 
@@ -156,7 +150,7 @@ npm run format
 # Auto-format all code with Prettier
 npm run format:write
 
-# Run automated test suites (31 API tests + 10 Web tests)
+# Run automated test suites (43 API tests + 17 Web tests = 60 tests)
 npm test
 
 # Build production artifacts for shared, api, and web
@@ -165,7 +159,7 @@ npm run build
 
 ---
 
-## 6. Phase 2 REST API Reference
+## 6. REST API Reference (Phases 1, 2 & 3)
 
 All responses follow a consistent schema:
 
@@ -363,6 +357,129 @@ Updates vehicle details (`make`, `model`, `year`, `color`, `capacity`).
 #### `DELETE /api/v1/vehicles/:id`
 
 Soft-deactivates the vehicle (`is_active = FALSE`). Preserves historical ride integrity for future Phase 3/4 ride references.
+
+---
+
+### Ride Management Endpoints (Phase 3)
+
+#### `POST /api/v1/rides`
+
+Publishes a new carpool or bikepool ride. Requires authentication and vehicle ownership.
+
+- **Validation Rules:**
+  - `departureTime`: Must be an ISO 8601 string in the future (`> NOW()`).
+  - `vehicleId`: Must reference an active vehicle owned by the authenticated driver.
+  - `availableSeats`: If vehicle is `BIKE`, capacity is strictly `1`. If `CAR`, seats must be between `1` and the vehicle's maximum seating capacity.
+  - `type`: `'CITY'` or `'INTERCITY'`.
+  - `pricePerSeat`: Optional non-negative integer (in INR).
+- **Request Body:**
+  ```json
+  {
+    "vehicleId": "e2d830b5-e0bb-432a-bd12-f24faea9079a",
+    "type": "INTERCITY",
+    "origin": "Surat",
+    "destination": "Ahmedabad",
+    "pickupPoint": "VR Mall, Dumas Road",
+    "dropoffPoint": "ISCON Cross Roads, SG Highway",
+    "departureTime": "2026-10-25T07:30:00.000Z",
+    "availableSeats": 3,
+    "pricePerSeat": 350,
+    "description": "Daily corporate commuter travelling via NH48. AC ride with trunk space."
+  }
+  ```
+- **Success Response (201 Created):** Returns created `Ride` object.
+- **Error Responses:**
+  - `400 Bad Request`: Departure time in past, seat count exceeding vehicle capacity, or bike with >1 seat.
+  - `403 Forbidden`: Authenticated user does not own the vehicle.
+
+#### `GET /api/v1/rides`
+
+Search and discover scheduled rides matching criteria with database-level pagination.
+
+- **Query Parameters:**
+  - `origin` (optional): Origin city or locality substring search.
+  - `destination` (optional): Destination city or locality substring search.
+  - `date` (optional): Specific departure date (`YYYY-MM-DD`).
+  - `vehicleType` (optional): `'CAR'` or `'BIKE'`.
+  - `type` (optional): `'CITY'` or `'INTERCITY'`.
+  - `sortBy` (optional): `'departureTime'` (default) or `'price'`.
+  - `sortOrder` (optional): `'asc'` (default) or `'desc'`.
+  - `page` (optional): Page number (default: `1`).
+  - `limit` (optional): Items per page (default: `10`, max: `50`).
+- **Success Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "items": [
+        {
+          "id": "7b0a8cd1-59f7-4148-be22-df38d9fca8cf",
+          "driverId": "c1f7b445-635c-4458-ba68-45b0a3aa46da",
+          "vehicleId": "e2d830b5-e0bb-432a-bd12-f24faea9079a",
+          "type": "INTERCITY",
+          "origin": "Surat",
+          "destination": "Ahmedabad",
+          "pickupPoint": "VR Mall, Dumas Road",
+          "dropoffPoint": "ISCON Cross Roads, SG Highway",
+          "departureTime": "2026-10-25T07:30:00.000Z",
+          "totalSeats": 3,
+          "availableSeats": 3,
+          "pricePerSeat": 350,
+          "description": "Daily corporate commuter travelling via NH48.",
+          "status": "SCHEDULED",
+          "driver": {
+            "id": "c1f7b445-635c-4458-ba68-45b0a3aa46da",
+            "name": "Priyank Danavle",
+            "bio": "Daily commuter from Surat to Ahmedabad.",
+            "isVerified": false,
+            "createdAt": "2026-10-18T09:12:00.000Z"
+          },
+          "vehicle": {
+            "id": "e2d830b5-e0bb-432a-bd12-f24faea9079a",
+            "type": "CAR",
+            "make": "Hyundai",
+            "model": "i20",
+            "year": 2022,
+            "color": "Polar White",
+            "capacity": 4
+          }
+        }
+      ],
+      "total": 1,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 1
+    }
+  }
+  ```
+
+#### `GET /api/v1/rides/:id`
+
+Retrieves public details for a specific ride, including the driver's non-sensitive public profile and vehicle specifications.
+
+- **Success Response (200 OK):** Returns complete `Ride` entity with embedded `driver` and `vehicle`.
+- **Error Response:** `404 Not Found` if the ride does not exist.
+
+#### `GET /api/v1/rides/driver/mine`
+
+Retrieves all rides published by the currently authenticated driver, including scheduled, completed, and cancelled rides.
+
+- **Headers:** Authentication required (Cookie or `Authorization: Bearer <token>`).
+- **Success Response (200 OK):** Returns `{ "rides": Ride[] }`.
+
+#### `PATCH /api/v1/rides/:id`
+
+Updates mutable details of a scheduled ride (pickup point, dropoff point, price per seat, notes).
+
+- **Authorization:** Only the driver who created the ride can update it.
+- **Rules:** Cannot modify a ride that is already `CANCELLED` or `COMPLETED`.
+
+#### `POST /api/v1/rides/:id/cancel`
+
+Cancels a scheduled ride.
+
+- **Authorization:** Only the driver who created the ride can cancel it.
+- **Rules:** Transitions status to `CANCELLED`. Idempotent rejection if the ride was already cancelled or completed.
 
 ---
 

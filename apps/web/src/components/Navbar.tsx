@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Car, User, PlusCircle, LogOut, Menu, X, Compass, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const Navbar: React.FC = () => {
@@ -38,7 +39,7 @@ export const Navbar: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.6rem',
+            gap: '0.65rem',
             textDecoration: 'none',
           }}
         >
@@ -47,17 +48,16 @@ export const Navbar: React.FC = () => {
               width: '40px',
               height: '40px',
               borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--color-primary)',
+              background:
+                'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
-              fontSize: '1.25rem',
-              fontWeight: 800,
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            🚗
+            <Car size={22} strokeWidth={2.2} />
           </div>
           <div>
             <span
@@ -80,20 +80,24 @@ export const Navbar: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '1.75rem',
+            gap: '1.5rem',
           }}
           className="desktop-nav"
         >
           <Link
-            to="/"
+            to="/rides"
             style={{
               color: 'var(--color-text)',
               fontWeight: 500,
               fontSize: '0.95rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
               transition: 'color var(--transition-fast)',
             }}
           >
-            Find a Ride
+            <Compass size={17} style={{ color: 'var(--color-primary)' }} />
+            Find Rides
           </Link>
 
           {isAuthenticated ? (
@@ -108,6 +112,17 @@ export const Navbar: React.FC = () => {
                 }}
               >
                 Dashboard
+              </Link>
+              <Link
+                to="/my-rides"
+                style={{
+                  color: 'var(--color-text)',
+                  fontWeight: 500,
+                  fontSize: '0.95rem',
+                  transition: 'color var(--transition-fast)',
+                }}
+              >
+                My Rides
               </Link>
               <Link
                 to="/vehicles"
@@ -173,9 +188,13 @@ export const Navbar: React.FC = () => {
                   color: 'var(--color-text)',
                   fontWeight: 500,
                   fontSize: '0.95rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
                   transition: 'color var(--transition-fast)',
                 }}
               >
+                <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
                 Safety
               </a>
             </>
@@ -194,17 +213,18 @@ export const Navbar: React.FC = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.35rem 0.75rem',
+                  gap: '0.45rem',
+                  padding: '0.35rem 0.85rem',
                   borderRadius: 'var(--radius-full)',
                   backgroundColor: 'var(--color-surface-subtle)',
                   border: '1px solid var(--color-border)',
                   fontSize: '0.85rem',
                   fontWeight: 600,
                   color: 'var(--color-text)',
+                  textDecoration: 'none',
                 }}
               >
-                <span>👤</span>
+                <User size={15} style={{ color: 'var(--color-primary)' }} />
                 <span>{user?.name.split(' ')[0]}</span>
               </Link>
 
@@ -212,21 +232,31 @@ export const Navbar: React.FC = () => {
                 type="button"
                 onClick={handleLogout}
                 className="btn btn-outline btn-sm"
-                style={{ minHeight: '36px' }}
+                style={{
+                  minHeight: '36px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
               >
-                Sign Out
+                <LogOut size={15} />
+                <span>Sign Out</span>
               </button>
 
               <Link
-                to="/vehicles"
+                to="/offer-ride"
                 className="btn btn-primary"
                 style={{
                   fontSize: '0.9rem',
                   padding: '0.5rem 1rem',
                   minHeight: '36px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
                 }}
               >
-                + Offer a Ride
+                <PlusCircle size={16} />
+                <span>Offer a Ride</span>
               </Link>
             </>
           ) : (
@@ -246,11 +276,18 @@ export const Navbar: React.FC = () => {
                 Sign Up
               </Link>
               <Link
-                to="/login?redirect=/vehicles"
+                to="/login?redirect=/offer-ride"
                 className="btn btn-primary btn-sm"
-                style={{ minHeight: '38px', fontSize: '0.9rem' }}
+                style={{
+                  minHeight: '38px',
+                  fontSize: '0.9rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
               >
-                + Offer a Ride
+                <PlusCircle size={15} />
+                <span>Offer a Ride</span>
               </Link>
             </>
           )}
@@ -264,12 +301,14 @@ export const Navbar: React.FC = () => {
               padding: '0.5rem',
               minHeight: '40px',
               width: '40px',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
           >
-            {mobileMenuOpen ? '✕' : '☰'}
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
@@ -288,11 +327,18 @@ export const Navbar: React.FC = () => {
           className="mobile-drawer"
         >
           <Link
-            to="/"
+            to="/rides"
             onClick={() => setMobileMenuOpen(false)}
-            style={{ padding: '0.5rem 0', fontWeight: 500 }}
+            style={{
+              padding: '0.5rem 0',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
           >
-            Find a Ride
+            <Compass size={18} style={{ color: 'var(--color-primary)' }} />
+            Find Rides
           </Link>
 
           {isAuthenticated ? (
@@ -303,6 +349,13 @@ export const Navbar: React.FC = () => {
                 style={{ padding: '0.5rem 0', fontWeight: 500 }}
               >
                 Dashboard
+              </Link>
+              <Link
+                to="/my-rides"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{ padding: '0.5rem 0', fontWeight: 500 }}
+              >
+                My Rides
               </Link>
               <Link
                 to="/vehicles"
@@ -325,8 +378,16 @@ export const Navbar: React.FC = () => {
                   setMobileMenuOpen(false);
                   handleLogout();
                 }}
-                style={{ width: '100%', marginTop: '0.5rem' }}
+                style={{
+                  width: '100%',
+                  marginTop: '0.5rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                }}
               >
+                <LogOut size={16} />
                 Sign Out
               </button>
             </>
@@ -358,7 +419,7 @@ export const Navbar: React.FC = () => {
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
                   className="btn btn-outline"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, textAlign: 'center' }}
                 >
                   Log In
                 </Link>
@@ -366,7 +427,7 @@ export const Navbar: React.FC = () => {
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
                   className="btn btn-accent"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, textAlign: 'center' }}
                 >
                   Sign Up
                 </Link>
@@ -375,12 +436,20 @@ export const Navbar: React.FC = () => {
           )}
 
           <Link
-            to={isAuthenticated ? '/vehicles' : '/login?redirect=/vehicles'}
+            to={isAuthenticated ? '/offer-ride' : '/login?redirect=/offer-ride'}
             className="btn btn-primary"
             onClick={() => setMobileMenuOpen(false)}
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            style={{
+              width: '100%',
+              marginTop: '0.5rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+            }}
           >
-            + Offer a Ride
+            <PlusCircle size={16} />
+            Offer a Ride
           </Link>
         </div>
       )}

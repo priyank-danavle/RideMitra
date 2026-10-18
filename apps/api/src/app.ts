@@ -10,6 +10,7 @@ import { healthRouter } from './routes/health.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { vehicleRouter } from './routes/vehicle.routes.js';
+import { rideRouter } from './routes/ride.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -44,6 +45,7 @@ export function createApp(): Express {
         auth: `${config.apiPrefix}/auth`,
         users: `${config.apiPrefix}/users`,
         vehicles: `${config.apiPrefix}/vehicles`,
+        rides: `${config.apiPrefix}/rides`,
       },
     });
   });
@@ -53,6 +55,7 @@ export function createApp(): Express {
   app.use(`${config.apiPrefix}/auth`, authRouter);
   app.use(`${config.apiPrefix}/users`, userRouter);
   app.use(`${config.apiPrefix}/vehicles`, vehicleRouter);
+  app.use(`${config.apiPrefix}/rides`, rideRouter);
 
   // 7. 404 Not Found Handler
   app.use(notFoundHandler);

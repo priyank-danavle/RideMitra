@@ -1,4 +1,5 @@
 import React from 'react';
+import { Building2, GraduationCap, MapPin, Clock, ArrowRight } from 'lucide-react';
 
 export const CommuteSections: React.FC = () => {
   return (
@@ -35,8 +36,11 @@ export const CommuteSections: React.FC = () => {
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '1.25rem', color: 'var(--color-primary)' }}>🏢</div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                  <Building2
+                    size={22}
+                    style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: '2px' }}
+                  />
                   <div>
                     <h3 style={{ fontSize: '1.05rem', marginBottom: '0.2rem' }}>
                       Commercial Hub Corridors
@@ -48,8 +52,11 @@ export const CommuteSections: React.FC = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '1.25rem', color: 'var(--color-accent)' }}>🎓</div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                  <GraduationCap
+                    size={22}
+                    style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: '2px' }}
+                  />
                   <div>
                     <h3 style={{ fontSize: '1.05rem', marginBottom: '0.2rem' }}>
                       College & University Commutes
@@ -61,8 +68,11 @@ export const CommuteSections: React.FC = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '1.25rem', color: 'var(--color-primary)' }}>📍</div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                  <MapPin
+                    size={22}
+                    style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: '2px' }}
+                  />
                   <div>
                     <h3 style={{ fontSize: '1.05rem', marginBottom: '0.2rem' }}>
                       Designated Express Pickups
@@ -199,8 +209,17 @@ export const CommuteSections: React.FC = () => {
                     marginBottom: '1rem',
                   }}
                 >
-                  <span style={{ fontWeight: 700, fontSize: '1.15rem' }}>
-                    {route.from} ➔ {route.to}
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '1.15rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    {route.from} <ArrowRight size={16} style={{ color: 'var(--color-primary)' }} />{' '}
+                    {route.to}
                   </span>
                   <span className="badge badge-primary">{route.distance}</span>
                 </div>
@@ -209,9 +228,13 @@ export const CommuteSections: React.FC = () => {
                     fontSize: '0.875rem',
                     color: 'var(--color-text-muted)',
                     marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
                   }}
                 >
-                  ⏱️ {route.duration}
+                  <Clock size={15} style={{ color: 'var(--color-primary)' }} />
+                  <span>{route.duration}</span>
                 </div>
                 <p
                   style={{

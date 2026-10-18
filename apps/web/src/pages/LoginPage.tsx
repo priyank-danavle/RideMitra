@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { KeyRound, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../lib/apiClient';
 
@@ -71,11 +72,10 @@ export const LoginPage: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.5rem',
               marginBottom: '1rem',
             }}
           >
-            🔑
+            <KeyRound size={24} style={{ color: 'var(--color-primary-dark)' }} />
           </div>
           <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Welcome Back</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
@@ -94,9 +94,13 @@ export const LoginPage: React.FC = () => {
               fontSize: '0.875rem',
               fontWeight: 500,
               marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            ⚠️ {error}
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
         )}
 
@@ -143,9 +147,20 @@ export const LoginPage: React.FC = () => {
                     fontSize: '0.8rem',
                     cursor: 'pointer',
                     fontWeight: 500,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
                   }}
                 >
-                  {showPassword ? 'Hide password' : 'Show password'}
+                  {showPassword ? (
+                    <>
+                      <EyeOff size={14} /> Hide password
+                    </>
+                  ) : (
+                    <>
+                      <Eye size={14} /> Show password
+                    </>
+                  )}
                 </button>
               </div>
               <input

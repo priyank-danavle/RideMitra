@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Car, Bike, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiClient, ApiError } from '../lib/apiClient';
 import type { Vehicle, SpecificVehicleType, CreateVehicleRequest } from '@ridemitra/shared';
 
@@ -144,8 +145,10 @@ export const VehiclesPage: React.FC = () => {
             setShowAddModal(true);
           }}
           className="btn btn-primary"
+          aria-label="+ Add New Vehicle"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
         >
-          + Add New Vehicle
+          <Plus size={16} /> Add New Vehicle
         </button>
       </div>
 
@@ -160,9 +163,13 @@ export const VehiclesPage: React.FC = () => {
             fontSize: '0.9rem',
             fontWeight: 500,
             marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
           }}
         >
-          ✓ {successMsg}
+          <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+          <span>{successMsg}</span>
         </div>
       )}
 
@@ -177,9 +184,13 @@ export const VehiclesPage: React.FC = () => {
             fontSize: '0.9rem',
             fontWeight: 500,
             marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
           }}
         >
-          ⚠️ {errorMsg}
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span>{errorMsg}</span>
         </div>
       )}
 
@@ -199,7 +210,21 @@ export const VehiclesPage: React.FC = () => {
             border: '2px dashed var(--color-border)',
           }}
         >
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚗 🏍️</div>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem',
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-primary-light)',
+              color: 'var(--color-primary-dark)',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <Car size={32} />
+            <Bike size={32} />
+          </div>
           <h2 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>No vehicles registered yet</h2>
           <p
             style={{
@@ -213,8 +238,13 @@ export const VehiclesPage: React.FC = () => {
             Add your car or motorcycle to start offering rides and sharing commute expenses along
             your daily route.
           </p>
-          <button type="button" onClick={() => setShowAddModal(true)} className="btn btn-primary">
-            + Register Your Vehicle Now
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <Plus size={16} /> Register Your Vehicle Now
           </button>
         </div>
       ) : (
@@ -244,8 +274,21 @@ export const VehiclesPage: React.FC = () => {
                   marginBottom: '1rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '1.5rem' }}>{v.type === 'CAR' ? '🚗' : '🏍️'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--color-primary-light)',
+                      color: 'var(--color-primary-dark)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {v.type === 'CAR' ? <Car size={20} /> : <Bike size={20} />}
+                  </span>
                   <span className="badge badge-primary">
                     {v.type === 'CAR' ? 'Carpool' : 'Bikepool'}
                   </span>
@@ -369,10 +412,17 @@ export const VehiclesPage: React.FC = () => {
                 type="button"
                 onClick={() => setShowAddModal(false)}
                 className="btn btn-outline btn-sm"
-                style={{ width: '32px', height: '32px', padding: 0 }}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
                 aria-label="Close dialog"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
@@ -421,7 +471,7 @@ export const VehiclesPage: React.FC = () => {
                         onChange={() => handleTypeChange('CAR')}
                         className="visually-hidden"
                       />
-                      🚗 Carpool
+                      <Car size={18} /> Carpool
                     </label>
 
                     <label
@@ -454,7 +504,7 @@ export const VehiclesPage: React.FC = () => {
                         onChange={() => handleTypeChange('BIKE')}
                         className="visually-hidden"
                       />
-                      🏍️ Bikepool
+                      <Bike size={18} /> Bikepool
                     </label>
                   </div>
                 </div>

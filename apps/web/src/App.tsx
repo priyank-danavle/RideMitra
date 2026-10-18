@@ -11,6 +11,10 @@ import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { VehiclesPage } from './pages/VehiclesPage';
+import { RidesPage } from './pages/RidesPage';
+import { OfferRidePage } from './pages/OfferRidePage';
+import { RideDetailsPage } from './pages/RideDetailsPage';
+import { MyRidesPage } from './pages/MyRidesPage';
 
 export const App: React.FC = () => {
   return (
@@ -20,8 +24,26 @@ export const App: React.FC = () => {
           <Navbar />
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/rides" element={<RidesPage />} />
+            <Route path="/rides/:id" element={<RideDetailsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/offer-ride"
+              element={
+                <ProtectedRoute>
+                  <OfferRidePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-rides"
+              element={
+                <ProtectedRoute>
+                  <MyRidesPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
