@@ -9,29 +9,50 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  Ticket,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../lib/apiClient';
-import type { Vehicle } from '@ridemitra/shared';
+import type { Vehicle, Booking } from '@ridemitra/shared';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [passengerBookings, setPassengerBookings] = useState<Booking[]>([]);
+  const [driverBookings, setDriverBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadVehicles() {
+    async function loadDashboardData() {
       try {
-        const res = await apiClient.getVehicles();
-        setVehicles(res.vehicles);
+        const [vehRes, passRes, drivRes] = await Promise.allSettled([
+          apiClient.getVehicles(),
+          apiClient.getPassengerBookings(),
+          apiClient.getDriverBookings(),
+        ]);
+
+        if (vehRes.status === 'fulfilled') {
+          setVehicles(vehRes.value.vehicles || []);
+        }
+        if (passRes.status === 'fulfilled') {
+          setPassengerBookings(passRes.value.bookings || []);
+        }
+        if (drivRes.status === 'fulfilled') {
+          setDriverBookings(drivRes.value.bookings || []);
+        }
       } catch {
         // Handled silently
       } finally {
         setLoading(false);
       }
     }
-    loadVehicles();
+    loadDashboardData();
   }, []);
+
+  const activePassengerBookings = passengerBookings.filter(
+    (b) => b.status === 'PENDING' || b.status === 'CONFIRMED',
+  );
+  const pendingDriverRequests = driverBookings.filter((b) => b.status === 'PENDING');
 
   return (
     <div className="container" style={{ paddingBlock: '3rem 4rem' }}>
@@ -86,7 +107,7 @@ export const DashboardPage: React.FC = () => {
                   gap: '0.35rem',
                 }}
               >
-                <Sparkles size={14} /> Phase 3 Active
+                <Sparkles size={14} /> Phase 4 Active
               </span>
             </div>
             <h1
@@ -100,7 +121,7 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1rem', maxWidth: '600px' }}>
               Publish verified carpools and bikepools, explore commuter routes, or manage your
-              scheduled trips.
+              scheduled trips and passenger reservations.
             </p>
           </div>
 
@@ -201,6 +222,59 @@ export const DashboardPage: React.FC = () => {
           </Link>
         </div>
 
+        {/* My Bookings Card (NEW Phase 4) */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-primary-light)',
+                color: 'var(--color-primary-dark)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ticket size={24} />
+            </div>
+            <span className="badge badge-success">
+              {loading ? '...' : `${activePassengerBookings.length} Active`}
+            </span>
+          </div>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>My Reservations</h2>
+          <p
+            style={{
+              color: 'var(--color-text-muted)',
+              fontSize: '0.9rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            Track your reserved seats, check driver approval status, or cancel upcoming trips.
+          </p>
+          <Link
+            to="/my-bookings"
+            className="btn btn-outline btn-sm"
+            style={{
+              marginTop: 'auto',
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            View My Bookings <ArrowRight size={14} />
+          </Link>
+        </div>
+
         {/* My Rides Card */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div
@@ -225,7 +299,11 @@ export const DashboardPage: React.FC = () => {
             >
               <Calendar size={24} />
             </div>
-            <span className="badge badge-outline">Management</span>
+            {pendingDriverRequests.length > 0 ? (
+              <span className="badge badge-primary">⚡ {pendingDriverRequests.length} Pending</span>
+            ) : (
+              <span className="badge badge-outline">Management</span>
+            )}
           </div>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>My Offered Rides</h2>
           <p
@@ -235,7 +313,9 @@ export const DashboardPage: React.FC = () => {
               marginBottom: '1.25rem',
             }}
           >
-            Review upcoming schedules, manage passenger seats, or cancel offered rides.
+            {pendingDriverRequests.length > 0
+              ? `You have ${pendingDriverRequests.length} passenger request(s) awaiting your confirmation.`
+              : 'Review schedules, accept passenger requests, or manage seat availability.'}
           </p>
           <Link
             to="/my-rides"
@@ -374,13 +454,14 @@ export const DashboardPage: React.FC = () => {
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}
         >
           <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} />
-          <h3 style={{ fontSize: '1.1rem' }}>Engineering Milestone: Phase 3 Active</h3>
+          <h3 style={{ fontSize: '1.1rem' }}>Engineering Milestone: Phase 4 Active</h3>
         </div>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.6 }}>
-          RideMitra now supports end-to-end <strong>Ride Management & Discovery</strong>. Drivers
-          with registered vehicles can publish upcoming routes with seat counts and pricing, while
-          commuters can filter, sort, and discover rides with MySQL-indexed queries and clean
-          responsive UI.
+          RideMitra now supports an end-to-end <strong>Booking Engine & Concurrency Control</strong>
+          . Passengers can request seat reservations with server-side pricing snapshots, drivers can
+          review and confirm or reject requests with MySQL row locking (
+          <code>SELECT ... FOR UPDATE</code>), and the application features smooth animated
+          route-level transitions and real-time active indicators.
         </p>
       </div>
     </div>

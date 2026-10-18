@@ -4,7 +4,7 @@
 
 RideMitra utilizes **MySQL 8.0** as its primary transactional database to guarantee ACID guarantees, transactional isolation for seat allocations, and relational integrity.
 
-## Phase Status (Phase 3 Completed)
+## Phase Status (Phase 4 Completed)
 
 The database schema currently includes:
 
@@ -12,6 +12,7 @@ The database schema currently includes:
 - `002_create_sessions_table.sql`: Sessions table storing SHA-256 hashed JWT tokens, client metadata, and revocation timestamps for immediate server-side revocation on logout.
 - `003_create_vehicles_table.sql`: Vehicles table with foreign key to users, vehicle type (`CAR`, `BIKE`), registration number, seating capacity, soft-deactivation flag (`is_active`), and verification status (`is_verified`).
 - `004_create_rides_table.sql`: Rides table storing published carpools and bikepools with foreign keys to drivers and vehicles, departure times, route information (origin, destination, pickup, dropoff), seat allocation, pricing in INR, lifecycle status (`SCHEDULED`, `ACTIVE`, `COMPLETED`, `CANCELLED`), and composite performance indexes (`idx_rides_discovery`, `idx_rides_route`, `idx_rides_driver`, `idx_rides_vehicle`).
+- `005_create_bookings_table.sql`: Bookings table storing passenger seat reservation requests, server-calculated price snapshots (`price_per_seat`, `total_price`), requested seat quantities, booking lifecycle status (`PENDING`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`), foreign keys referencing `rides` and `users`, and composite performance indexes (`idx_bookings_passenger`, `idx_bookings_ride`, `idx_bookings_status`).
 
 ## Structure
 

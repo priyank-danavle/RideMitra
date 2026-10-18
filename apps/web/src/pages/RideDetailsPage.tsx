@@ -13,35 +13,109 @@ import {
   FileText,
   Users,
   Info,
+  Ticket,
+  CheckCircle2,
+  X,
+  Minus,
+  Plus,
 } from 'lucide-react';
-import { apiClient } from '../lib/apiClient';
+import { apiClient, ApiError } from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext';
-import type { Ride } from '@ridemitra/shared';
+import type { Ride, Booking } from '@ridemitra/shared';
 
 export const RideDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [ride, setRide] = useState<Ride | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Booking state
+  const [existingBooking, setExistingBooking] = useState<Booking | null>(null);
+  const [seatsRequested, setSeatsRequested] = useState<number>(1);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
+
   useEffect(() => {
+    let isMounted = true;
     async function loadRide() {
       if (!id) return;
       setLoading(true);
       setError(null);
       try {
         const res = await apiClient.getRideById(id);
-        setRide(res.ride);
+        if (isMounted) {
+          setRide(res.ride);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to retrieve ride details.');
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to retrieve ride details.');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     loadRide();
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkPassengerBooking() {
+      if (!id || !isAuthenticated) {
+        setExistingBooking(null);
+        return;
+      }
+      try {
+        const bookingsRes = await apiClient.getPassengerBookings();
+        if (isMounted) {
+          const existing = bookingsRes.bookings.find(
+            (b) => b.rideId === id && b.status !== 'CANCELLED' && b.status !== 'REJECTED',
+          );
+          setExistingBooking(existing || null);
+        }
+      } catch {
+        // Non-critical background booking check
+      }
+    }
+    checkPassengerBooking();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, isAuthenticated]);
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ride || !isAuthenticated) return;
+    setBookingLoading(true);
+    setBookingError(null);
+    setBookingSuccess(null);
+
+    try {
+      const res = await apiClient.createBooking({
+        rideId: ride.id,
+        seatsBooked: seatsRequested,
+      });
+      setExistingBooking(res.booking);
+      setBookingSuccess(
+        `Booking request for ${res.booking.seatsBooked} seat(s) submitted! The driver will review your request.`,
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setBookingError(err.message);
+      } else {
+        setBookingError('Failed to submit booking request. Please check seat availability.');
+      }
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -110,8 +184,13 @@ export const RideDetailsPage: React.FC = () => {
   }
 
   const isOwner = user && user.id === ride.driverId;
-  const isAvailable = ride.status === 'SCHEDULED' && ride.availableSeats > 0;
+  const isBike = ride.vehicle?.type === 'BIKE';
   const departureDate = new Date(ride.departureTime);
+  const isPast = departureDate.getTime() < Date.now();
+  const isScheduled = ride.status === 'SCHEDULED' && !isPast;
+  const isFull = ride.availableSeats <= 0;
+  const maxSeatsForBooking = isBike ? 1 : Math.min(ride.availableSeats, 6);
+
   const formattedDate = departureDate.toLocaleDateString(undefined, {
     weekday: 'long',
     day: 'numeric',
@@ -122,6 +201,8 @@ export const RideDetailsPage: React.FC = () => {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const totalPricePreview = (ride.pricePerSeat || 0) * seatsRequested;
 
   return (
     <div className="container" style={{ paddingBlock: '2.5rem 4rem', maxWidth: '840px' }}>
@@ -165,7 +246,7 @@ export const RideDetailsPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <span
               className={`badge ${
-                ride.status === 'SCHEDULED'
+                isScheduled
                   ? 'badge-success'
                   : ride.status === 'CANCELLED'
                     ? 'badge-error'
@@ -173,24 +254,25 @@ export const RideDetailsPage: React.FC = () => {
               }`}
               style={{ fontSize: '0.9rem', padding: '0.35rem 0.75rem', fontWeight: 700 }}
             >
-              {ride.status === 'SCHEDULED' && 'Scheduled & Open'}
+              {isScheduled && 'Scheduled & Open'}
               {ride.status === 'CANCELLED' && 'Cancelled'}
               {ride.status === 'COMPLETED' && 'Trip Completed'}
               {ride.status === 'ACTIVE' && 'Trip In Progress'}
+              {ride.status === 'SCHEDULED' && isPast && 'Past Departure'}
             </span>
             <span className={`badge ${ride.type === 'CITY' ? 'badge-city' : 'badge-intercity'}`}>
               {ride.type === 'CITY' ? 'City Commute' : 'Intercity Travel'}
             </span>
-            <span className={`badge ${ride.vehicle?.type === 'CAR' ? 'badge-car' : 'badge-bike'}`}>
-              {ride.vehicle?.type === 'CAR' ? (
-                <>
-                  <Car size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                  Carpool
-                </>
-              ) : (
+            <span className={`badge ${isBike ? 'badge-bike' : 'badge-car'}`}>
+              {isBike ? (
                 <>
                   <Bike size={14} style={{ display: 'inline', marginRight: '4px' }} />
                   Bikepool
+                </>
+              ) : (
+                <>
+                  <Car size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                  Carpool
                 </>
               )}
             </span>
@@ -366,10 +448,12 @@ export const RideDetailsPage: React.FC = () => {
                   fontWeight: 700,
                   fontSize: '1.05rem',
                   marginTop: '0.2rem',
-                  color: isAvailable ? 'var(--color-success)' : 'var(--color-error)',
+                  color: ride.availableSeats > 0 ? 'var(--color-success)' : 'var(--color-error)',
                 }}
               >
-                {ride.availableSeats} Seats Available
+                {ride.availableSeats > 0
+                  ? `${ride.availableSeats} Seats Available`
+                  : 'Fully Booked'}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
                 {ride.totalSeats} seats originally offered
@@ -404,10 +488,10 @@ export const RideDetailsPage: React.FC = () => {
                 marginBottom: '1rem',
               }}
             >
-              {ride.vehicle?.type === 'CAR' ? (
-                <Car size={18} style={{ color: 'var(--color-primary)' }} />
-              ) : (
+              {isBike ? (
                 <Bike size={18} style={{ color: 'var(--color-primary)' }} />
+              ) : (
+                <Car size={18} style={{ color: 'var(--color-primary)' }} />
               )}
               <h2 style={{ fontSize: '1.1rem' }}>Vehicle Information</h2>
             </div>
@@ -427,7 +511,7 @@ export const RideDetailsPage: React.FC = () => {
                 >
                   <span style={{ color: 'var(--color-text-muted)' }}>Type:</span>
                   <span style={{ fontWeight: 600 }}>
-                    {ride.vehicle.type === 'CAR' ? 'Carpool Car' : 'Motorcycle / Scooter'}
+                    {isBike ? 'Motorcycle / Scooter' : 'Carpool Car'}
                   </span>
                 </div>
                 {ride.vehicle.registrationNumber && (
@@ -590,39 +674,60 @@ export const RideDetailsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Action & Roadmap Banner */}
-        <div
-          style={{
-            padding: '1.5rem',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: 'var(--color-primary-light)',
-            border: '1px solid var(--color-primary)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Info size={24} style={{ color: 'var(--color-primary-dark)', flexShrink: 0 }} />
-            <div>
-              <div
-                style={{ fontWeight: 700, color: 'var(--color-primary-dark)', fontSize: '0.95rem' }}
-              >
-                {isOwner ? 'You are the driver of this ride' : 'Phase 3: Ride Discovery Active'}
-              </div>
-              <div
-                style={{ fontSize: '0.85rem', color: 'var(--color-primary-dark)', opacity: 0.9 }}
-              >
-                {isOwner
-                  ? 'You can manage, edit eligible details, or cancel this ride from My Rides.'
-                  : 'Passenger seat bookings and instant requests will be introduced in Phase 4.'}
+        {/* =========================================================================
+            PHASE 4: INTERACTIVE BOOKING ENGINE & STATUS
+           ========================================================================= */}
+        {bookingSuccess && (
+          <div
+            className="card"
+            style={{
+              backgroundColor: '#ecfdf5',
+              borderColor: '#a7f3d0',
+              color: '#065f46',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+            }}
+          >
+            <CheckCircle2 size={20} />
+            <span style={{ fontWeight: 600 }}>{bookingSuccess}</span>
+          </div>
+        )}
+
+        {isOwner ? (
+          /* Driver View */
+          <div
+            style={{
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'var(--color-primary-light)',
+              border: '1px solid var(--color-primary)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Info size={24} style={{ color: 'var(--color-primary-dark)', flexShrink: 0 }} />
+              <div>
+                <div
+                  style={{ fontWeight: 700, color: 'var(--color-primary-dark)', fontSize: '1rem' }}
+                >
+                  You are the driver of this ride
+                </div>
+                <div
+                  style={{ fontSize: '0.85rem', color: 'var(--color-primary-dark)', opacity: 0.9 }}
+                >
+                  Manage incoming passenger booking requests, seat assignments, or trip updates in
+                  My Rides.
+                </div>
               </div>
             </div>
-          </div>
 
-          {isOwner && (
             <Link
               to="/my-rides"
               className="btn btn-primary"
@@ -630,8 +735,439 @@ export const RideDetailsPage: React.FC = () => {
             >
               Manage in My Rides <ArrowRight size={16} />
             </Link>
-          )}
-        </div>
+          </div>
+        ) : !isAuthenticated ? (
+          /* Unauthenticated Prompt */
+          <div
+            style={{
+              padding: '2rem',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'var(--color-surface-subtle)',
+              border: '1px solid var(--color-border)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-primary-light)',
+                color: 'var(--color-primary-dark)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+              }}
+            >
+              <Ticket size={24} />
+            </div>
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Want to Join This Ride?</h2>
+            <p
+              style={{
+                color: 'var(--color-text-muted)',
+                fontSize: '0.95rem',
+                maxWidth: '480px',
+                marginInline: 'auto',
+                marginBottom: '1.5rem',
+              }}
+            >
+              Sign in or create an account to request seat reservations, coordinate pickup points,
+              and connect with verified commuters.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+              <Link to={`/login?redirect=/rides/${ride.id}`} className="btn btn-primary">
+                Sign In to Reserve Seats
+              </Link>
+              <Link to="/register" className="btn btn-outline">
+                Create Account
+              </Link>
+            </div>
+          </div>
+        ) : existingBooking ? (
+          /* User already booked */
+          <div
+            className="card"
+            style={{
+              padding: '1.75rem',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-primary)',
+              backgroundColor: 'var(--color-primary-light)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <CheckCircle2 size={24} style={{ color: 'var(--color-primary-dark)' }} />
+                <div>
+                  <h3
+                    style={{
+                      fontSize: '1.15rem',
+                      fontWeight: 800,
+                      color: 'var(--color-primary-dark)',
+                    }}
+                  >
+                    Your Reservation is Active
+                  </h3>
+                  <div
+                    style={{
+                      fontSize: '0.85rem',
+                      color: 'var(--color-primary-dark)',
+                      opacity: 0.9,
+                    }}
+                  >
+                    Status:{' '}
+                    <strong>
+                      {existingBooking.status === 'PENDING'
+                        ? 'Pending Driver Approval'
+                        : existingBooking.status === 'CONFIRMED'
+                          ? 'Confirmed & Seats Held'
+                          : existingBooking.status}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <span
+                className={`badge ${
+                  existingBooking.status === 'CONFIRMED' ? 'badge-success' : 'badge-outline'
+                }`}
+                style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem', fontWeight: 700 }}
+              >
+                {existingBooking.status}
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                padding: '1rem 1.25rem',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                  SEATS RESERVED
+                </span>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                  {existingBooking.seatsBooked}{' '}
+                  {existingBooking.seatsBooked === 1 ? 'Seat' : 'Seats'}
+                </div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                  TOTAL FARE
+                </span>
+                <div
+                  style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--color-primary)' }}
+                >
+                  ₹{existingBooking.totalPrice}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <Link
+                to="/my-bookings"
+                className="btn btn-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Ticket size={16} /> View in My Bookings
+              </Link>
+            </div>
+          </div>
+        ) : !isScheduled ? (
+          /* Ride Ineligible for booking */
+          <div
+            style={{
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'var(--color-surface-subtle)',
+              border: '1px solid var(--color-border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <AlertCircle size={22} style={{ color: 'var(--color-text-muted)' }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Ride Closed for Booking</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                This ride has either departed or been cancelled and cannot accept new passenger
+                reservations.
+              </div>
+            </div>
+          </div>
+        ) : isFull ? (
+          /* Ride is Full */
+          <div
+            style={{
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <AlertCircle size={22} style={{ color: '#dc2626' }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#991b1b' }}>
+                All Seats Full
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#991b1b' }}>
+                All offered seats on this corridor are currently occupied. Check back later in case
+                a passenger cancels.
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Active Interactive Booking Form */
+          <div
+            className="card"
+            style={{
+              padding: '2rem',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <Ticket size={20} style={{ color: 'var(--color-primary)' }} />
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Reserve Passenger Seats</h2>
+            </div>
+
+            {/* Success alert */}
+            {bookingSuccess && (
+              <div
+                className="card"
+                style={{
+                  backgroundColor: '#ecfdf5',
+                  borderColor: '#a7f3d0',
+                  color: '#065f46',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <CheckCircle2 size={18} />
+                <span>{bookingSuccess}</span>
+              </div>
+            )}
+
+            {/* Error alert */}
+            {bookingError && (
+              <div
+                className="card"
+                role="alert"
+                style={{
+                  backgroundColor: '#fef2f2',
+                  borderColor: '#fecaca',
+                  color: '#991b1b',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertCircle size={18} />
+                  <span>{bookingError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBookingError(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#991b1b',
+                  }}
+                  aria-label="Dismiss error"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleBookingSubmit}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Seat Selector Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                    padding: '1rem 1.25rem',
+                    backgroundColor: 'var(--color-surface-subtle)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  <div>
+                    <label
+                      htmlFor="seatSelector"
+                      style={{ fontWeight: 700, fontSize: '0.95rem', display: 'block' }}
+                    >
+                      Number of Seats Requested
+                    </label>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                      {ride.availableSeats} of {ride.totalSeats} seats currently remaining
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      type="button"
+                      aria-label="Decrease seats"
+                      disabled={seatsRequested <= 1 || bookingLoading}
+                      onClick={() => setSeatsRequested((prev) => Math.max(1, prev - 1))}
+                      className="btn btn-outline"
+                      style={{ width: '38px', height: '38px', padding: 0, borderRadius: '50%' }}
+                    >
+                      <Minus size={16} />
+                    </button>
+
+                    <span
+                      id="seatSelector"
+                      style={{
+                        fontSize: '1.35rem',
+                        fontWeight: 800,
+                        minWidth: '32px',
+                        textAlign: 'center',
+                        color: 'var(--color-text)',
+                      }}
+                    >
+                      {seatsRequested}
+                    </span>
+
+                    <button
+                      type="button"
+                      aria-label="Increase seats"
+                      disabled={seatsRequested >= maxSeatsForBooking || bookingLoading}
+                      onClick={() =>
+                        setSeatsRequested((prev) => Math.min(maxSeatsForBooking, prev + 1))
+                      }
+                      className="btn btn-outline"
+                      style={{ width: '38px', height: '38px', padding: 0, borderRadius: '50%' }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Price Breakdown Calculation */}
+                <div
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-lg)',
+                    backgroundColor: 'var(--color-surface-subtle)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.9rem',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-muted)' }}>Fare per Seat:</span>
+                    <span style={{ fontWeight: 600 }}>₹{ride.pricePerSeat || 0}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.9rem',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-muted)' }}>Requested Seats:</span>
+                    <span style={{ fontWeight: 600 }}>× {seatsRequested}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '1.15rem',
+                      fontWeight: 800,
+                      paddingTop: '0.75rem',
+                      borderTop: '1px solid var(--color-border)',
+                    }}
+                  >
+                    <span>Estimated Total Fare:</span>
+                    <span style={{ color: 'var(--color-primary)' }}>₹{totalPricePreview}</span>
+                  </div>
+                </div>
+
+                {/* Information Notice */}
+                <p
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--color-text-muted)',
+                    lineHeight: 1.5,
+                    margin: 0,
+                  }}
+                >
+                  <strong>Seat Allocation Policy:</strong> Your seats are officially reserved upon
+                  driver confirmation. Fares are calculated authoritatively by the server and
+                  settled between passenger and driver.
+                </p>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={bookingLoading || ride.availableSeats <= 0}
+                  className="btn btn-primary"
+                  style={{
+                    padding: '0.85rem 1.5rem',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Ticket size={18} />
+                  <span>
+                    {bookingLoading ? 'Submitting Request...' : 'Request Seat Reservation'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </motion.div>
     </div>
   );

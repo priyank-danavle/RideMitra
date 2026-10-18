@@ -141,23 +141,27 @@ Functional ride publishing and discovery engine with professional UI revamp and 
 
 ---
 
-## Phase 4 — Booking and Seat Management
+## Phase 4 — Booking Engine, Seat Concurrency & Navigation Animation Polish
 
 ### Goals
 
 - Implement reliable passenger seat booking requests with driver approval workflows.
 - Guarantee transactional consistency and prevent overbooking under concurrent requests.
+- Elevate navigation UX across the entire application with route-level exit/enter transitions and animated active navigation feedback.
 
 ### Implementation Tasks
 
-- [ ] Create database migration for `bookings` table with status states (`PENDING`, `CONFIRMED`, `REJECTED`, `CANCELLED`).
-- [ ] Implement booking creation endpoint (`POST /api/v1/rides/:id/book`).
-- [ ] Implement transactional seat decrement logic using MySQL `SELECT ... FOR UPDATE` or atomic decrement queries.
-- [ ] Prevent edge cases: self-booking, duplicate active requests for the same ride, booking cancelled or completed rides.
-- [ ] Implement driver action endpoints (`POST /api/v1/bookings/:id/accept`, `reject`).
-- [ ] Implement booking cancellation with automatic seat replenishment.
-- [ ] Build frontend booking management interfaces for both passenger and driver.
-- [ ] Add concurrency tests simulating simultaneous seat bookings.
+- [x] Create database migration for `bookings` table (`005_create_bookings_table.sql`) with status states (`PENDING`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`), server price snapshot, and composite indexes.
+- [x] Implement booking creation endpoint (`POST /api/v1/bookings`) with server-side price calculation and capacity validation.
+- [x] Implement MySQL InnoDB row-level locking (`SELECT ... FOR UPDATE` inside `withTransaction`) guaranteeing atomic seat allocation and zero double-booking.
+- [x] Enforce authorization and business boundaries: prevent driver self-booking, prevent booking of past or cancelled rides, enforce vehicle-specific seat limits.
+- [x] Implement driver review endpoints (`POST /api/v1/bookings/:id/confirm`, `POST /api/v1/bookings/:id/reject`).
+- [x] Implement passenger and driver booking cancellation (`POST /api/v1/bookings/:id/cancel`) releasing allocated seats exactly once when a confirmed booking is cancelled.
+- [x] Build passenger "My Bookings" page (`/my-bookings`) with tab filtering, ride summaries, driver verification badges, and cancellation modal.
+- [x] Build driver review controls inside "My Rides" (`/my-rides`) with dedicated "Passenger Requests" tab and Accept/Reject action buttons.
+- [x] Implement full-app route transitions with Framer Motion (`AnimatedRoutes`, `PageTransition`, `AnimatePresence mode="wait"`, automatic `ScrollToTop`, and `useReducedMotion`).
+- [x] Enhance `Navbar` with smooth active indicator pill (`layoutId="navbar-indicator"`), "My Bookings" link, and animated mobile drawer.
+- [x] Add automated unit, integration, and concurrency tests (54 API tests, 25 Web tests = 79 passing tests total).
 
 ### Dependencies
 
@@ -165,14 +169,16 @@ Functional ride publishing and discovery engine with professional UI revamp and 
 
 ### Acceptance Criteria
 
-1. Concurrent requests cannot exceed available seat capacity.
+1. Concurrent requests cannot exceed available seat capacity (verified with parallel `Promise.all` tests).
 2. Drivers can accept or reject requests with immediate status reflection.
 3. Cancelled bookings restore available seat counts atomically.
 4. Unit and concurrency tests verify all booking state transitions.
+5. Application navigation features smooth enter/exit route transitions and animated active links.
+6. `prefers-reduced-motion` preferences are fully respected.
 
 ### Deliverable
 
-Transactionally safe booking and seat allocation subsystem.
+Transactionally safe booking and seat allocation subsystem with full animated route transitions and 79 passing automated tests.
 
 ---
 

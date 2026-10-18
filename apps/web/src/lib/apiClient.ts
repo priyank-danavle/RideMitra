@@ -209,4 +209,61 @@ export const apiClient = {
     const query = status && status !== 'ALL' ? `?status=${status}` : '';
     return request<{ rides: import('@ridemitra/shared').Ride[] }>(`rides/my-rides${query}`);
   },
+
+  // Booking Engine (Phase 4)
+  createBooking: (data: import('@ridemitra/shared').CreateBookingRequest) =>
+    request<{ booking: import('@ridemitra/shared').Booking; message: string }>('bookings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getPassengerBookings: (status?: import('@ridemitra/shared').BookingStatus) => {
+    const query = status ? `?status=${status}` : '';
+    return request<{ bookings: import('@ridemitra/shared').Booking[] }>(
+      `bookings/passenger/mine${query}`,
+    );
+  },
+
+  getDriverBookings: (params?: {
+    rideId?: string;
+    status?: import('@ridemitra/shared').BookingStatus;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.rideId) query.set('rideId', params.rideId);
+    if (params?.status) query.set('status', params.status);
+    const queryString = query.toString();
+    return request<{ bookings: import('@ridemitra/shared').Booking[] }>(
+      `bookings/driver/mine${queryString ? `?${queryString}` : ''}`,
+    );
+  },
+
+  getRideBookings: (rideId: string) =>
+    request<{ bookings: import('@ridemitra/shared').Booking[] }>(`bookings/ride/${rideId}`),
+
+  getBookingById: (id: string) =>
+    request<{ booking: import('@ridemitra/shared').Booking }>(`bookings/${id}`),
+
+  confirmBooking: (id: string) =>
+    request<{ booking: import('@ridemitra/shared').Booking; message: string }>(
+      `bookings/${id}/confirm`,
+      {
+        method: 'POST',
+      },
+    ),
+
+  rejectBooking: (id: string) =>
+    request<{ booking: import('@ridemitra/shared').Booking; message: string }>(
+      `bookings/${id}/reject`,
+      {
+        method: 'POST',
+      },
+    ),
+
+  cancelBooking: (id: string) =>
+    request<{ booking: import('@ridemitra/shared').Booking; message: string }>(
+      `bookings/${id}/cancel`,
+      {
+        method: 'POST',
+      },
+    ),
 };

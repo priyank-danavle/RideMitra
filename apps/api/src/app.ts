@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { vehicleRouter } from './routes/vehicle.routes.js';
 import { rideRouter } from './routes/ride.routes.js';
+import { bookingRouter } from './routes/booking.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -46,6 +47,7 @@ export function createApp(): Express {
         users: `${config.apiPrefix}/users`,
         vehicles: `${config.apiPrefix}/vehicles`,
         rides: `${config.apiPrefix}/rides`,
+        bookings: `${config.apiPrefix}/bookings`,
       },
     });
   });
@@ -56,6 +58,7 @@ export function createApp(): Express {
   app.use(`${config.apiPrefix}/users`, userRouter);
   app.use(`${config.apiPrefix}/vehicles`, vehicleRouter);
   app.use(`${config.apiPrefix}/rides`, rideRouter);
+  app.use(`${config.apiPrefix}/bookings`, bookingRouter);
 
   // 7. 404 Not Found Handler
   app.use(notFoundHandler);

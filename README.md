@@ -21,55 +21,53 @@ RideMitra operates strictly as a **non-commercial cost-sharing platform**; drive
 
 ---
 
-## 2. Current Project Phase: Phase 3 — Ride Management, Search & Professional UI Revamp
+## 2. Current Project Phase: Phase 4 — Booking Engine, Seat Concurrency & Navigation Animation Polish
 
-The project follows a disciplined [8-Phase Engineering Roadmap](docs/roadmap.md). We have completed **Phase 1**, **Phase 2**, and **Phase 3**.
+The project follows a disciplined [8-Phase Engineering Roadmap](docs/roadmap.md). We have completed **Phase 1**, **Phase 2**, **Phase 3**, and **Phase 4**.
 
-### Implemented in Phase 3:
+### Implemented in Phase 4:
 
 - [x] **Relational Schema & Migrations (`database/migrations`):**
-  - `004_create_rides_table.sql`: Rides table with driver and vehicle foreign keys, route definitions (`origin`, `destination`, `pickup_point`, `dropoff_point`), departure time, seat allocation, pricing in INR, lifecycle status (`SCHEDULED`, `ACTIVE`, `COMPLETED`, `CANCELLED`), and composite performance indexes (`idx_rides_discovery`, `idx_rides_route`, `idx_rides_driver`, `idx_rides_vehicle`).
-- [x] **Ride Management REST API Subsystem (`apps/api`):**
-  - `POST /api/v1/rides`: Publish carpool/bikepool journeys with vehicle ownership check, seating capacity check (Bike = strictly 1 seat; Car = 1-8 seats), and future departure validation.
-  - `GET /api/v1/rides`: Multi-parameter ride search & discovery engine with origin, destination, date, vehicleType, and rideType filtering, sorting by departure time or price, and database-level pagination.
-  - `GET /api/v1/rides/:id`: Public ride details with route timeline, public driver profile (name, bio, verified badge; non-sensitive), and vehicle information.
-  - `GET /api/v1/rides/driver/mine`: Driver ride dashboard endpoint retrieving all published rides categorized into active, past, and cancelled.
-  - `PATCH /api/v1/rides/:id`: Edit mutable parameters (pickup point, dropoff point, price per seat, notes) for scheduled rides owned by the authenticated driver.
-  - `POST /api/v1/rides/:id/cancel`: Cancellation endpoint transitioning scheduled rides to `CANCELLED` status with validation preventing cancellation of already completed or cancelled trips.
-- [x] **Complete Professional UI Revamp (`apps/web`):**
-  - **Zero Emoji Iconography:** Replaced all emojis across the entire web application (Navbar, Hero, SearchForm, FeatureHighlights, CommuteSections, Footer, SafetyBanner, Dashboard, Login, Register, Profile, Vehicles) with standard scalable `lucide-react` SVG icons.
-  - **Framer Motion Micro-Animations:** Staggered list animations, smooth modal overlays, interactive card hover states, and seamless tab transitions with `prefers-reduced-motion` compliance.
-  - **Skeleton Loaders & Empty States:** Realistic skeleton loaders for search results and ride details avoiding layout shift (CLS), plus actionable empty states for search queries and ride tabs.
-  - **New Phase 3 Screens:**
-    - `/rides`: Search, multi-facet filtering, sorting, pagination, and animated ride cards.
-    - `/offer-ride`: Multi-step publishing wizard with vehicle auto-fill, capacity limits, and route guidelines.
-    - `/rides/:id`: Complete trip overview with corridor timeline, driver trust card, and vehicle specifications.
-    - `/my-rides`: Driver ride management with Upcoming/Past/Cancelled tabs, Edit Modal, and Cancel Confirmation Modal.
+  - `005_create_bookings_table.sql`: Bookings table storing passenger seat requests, server-calculated price snapshots (`price_per_seat`, `total_price`), seat counts, booking lifecycle status (`PENDING`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`), foreign keys to `rides` and `users`, and composite performance indexes (`idx_bookings_passenger`, `idx_bookings_ride`, `idx_bookings_status`).
+- [x] **Booking Engine REST API Subsystem (`apps/api`):**
+  - `POST /api/v1/bookings`: Request seats with server-side price calculation and capacity validation. Prevents driver self-booking and booking past/cancelled rides.
+  - `GET /api/v1/bookings/passenger`: Retrieve authenticated passenger's bookings with embedded ride, driver, and vehicle summaries.
+  - `GET /api/v1/bookings/driver`: Retrieve incoming booking requests for rides owned by the authenticated driver.
+  - `GET /api/v1/bookings/:id`: Retrieve single authorized booking enforcing passenger/driver ownership.
+  - `POST /api/v1/bookings/:id/confirm`: Driver approval endpoint with **MySQL InnoDB Row-Level Locking (`SELECT ... FOR UPDATE`) inside atomic transactions**, safely preventing double-booking under concurrent load.
+  - `POST /api/v1/bookings/:id/reject`: Driver rejection endpoint transitioning pending request to `REJECTED`.
+  - `POST /api/v1/bookings/:id/cancel`: Passenger or driver cancellation endpoint releasing allocated seats exactly once when a confirmed booking is cancelled.
+- [x] **Animated Route Transitions & Navigation Polish (`apps/web`):**
+  - **Full Route Transitions:** Integrated `<AnimatedRoutes>` and `<PageTransition>` powered by `framer-motion` (`AnimatePresence mode="wait"`, automatic `ScrollToTop`, and `useReducedMotion`).
+  - **Active Navigation Indicator:** Desktop navigation tabs smoothly slide an active pill indicator (`layoutId="navbar-indicator"`) across Dashboard, My Rides, My Bookings, and Find Rides.
+  - **Passenger "My Bookings" Screen (`/my-bookings`):** Active/History tabs, driver trust badges, seat and fare breakdowns, and animated cancellation confirmation dialog.
+  - **Driver "Passenger Requests" Management (`/my-rides`):** Dedicated Requests tab, pending request count badges, and Accept/Reject seat controls.
+  - **Interactive Seat Reservation Widget (`/rides/:id`):** Interactive seat selector stepper, live server-price breakdown, active reservation badges, and driver management banners.
 - [x] **Automated Test Coverage:**
-  - 43 backend integration tests (`rides.test.ts`, `vehicles.test.ts`, `auth.test.ts`, `health.test.ts`).
-  - 17 frontend unit & component tests (`App.test.tsx`, `Phase2.test.tsx`, `Phase3.test.tsx`).
-  - Total: **60 automated tests** passing across the monorepo.
+  - 54 backend integration tests (`bookings.test.ts`, `rides.test.ts`, `vehicles.test.ts`, `auth.test.ts`, `health.test.ts`).
+  - 25 frontend unit & component tests (`App.test.tsx`, `Phase2.test.tsx`, `Phase3.test.tsx`, `Phase4.test.tsx`).
+  - Total: **79 automated tests** passing across the monorepo, including parallel concurrency double-booking prevention tests.
 
 ### Intentionally Deferred to Future Phases:
 
-- ❌ **Booking & Concurrency-Safe Seat Allocation:** Scheduled for Phase 4.
-- ❌ **GraphQL & Mapping/Route Integrations:** Scheduled for Phase 5.
+- ❌ **Payment Gateways, Escrow & UPI Integrations:** Strictly non-commercial cost-sharing in MVP; deferred to Phase 5+.
+- ❌ **GraphQL & Mapping/Route Distance APIs:** Scheduled for Phase 5.
 - ❌ **Real Government ID & Vehicle Verification Workflows:** Scheduled for Phase 5/6.
-- ❌ **In-app Chat & Passenger Ratings:** Scheduled for Phase 6.
+- ❌ **In-app Chat, Messaging & Passenger Ratings:** Scheduled for Phase 6.
 
 ---
 
 ## 3. Technology Stack
 
-| Layer            | Technologies                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| **Monorepo**     | npm Workspaces, TypeScript 5, Concurrently                                                  |
-| **Frontend**     | React 18, TypeScript, Vite, React Router 6, Framer Motion, Lucide React, Modern CSS Tokens  |
-| **Backend API**  | Node.js (v20/v22 LTS), Express.js, Zod, Bcrypt, JWT, Cookie-Parser, Helmet, CORS            |
-| **Database**     | MySQL 8.0 (`mysql2` connection pool, SQL migrations, composite performance indexes, Docker) |
-| **Testing**      | Vitest, Supertest, React Testing Library, JSDOM (60 tests passing)                          |
-| **Code Quality** | ESLint 9, Prettier, TypeScript Strict Mode                                                  |
-| **CI / CD**      | GitHub Actions with automated MySQL 8.0 service & migrations container                      |
+| Layer            | Technologies                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| **Monorepo**     | npm Workspaces, TypeScript 5, Concurrently                                                 |
+| **Frontend**     | React 18, TypeScript, Vite, React Router 6, Framer Motion, Lucide React, Modern CSS Tokens |
+| **Backend API**  | Node.js (v20/v22 LTS), Express.js, Zod, Bcrypt, JWT, Cookie-Parser, Helmet, CORS           |
+| **Database**     | MySQL 8.0 (`mysql2` connection pool, SQL migrations, InnoDB row-level locking, Docker)     |
+| **Testing**      | Vitest, Supertest, React Testing Library, JSDOM (79 tests passing)                         |
+| **Code Quality** | ESLint 9, Prettier, TypeScript Strict Mode                                                 |
+| **CI / CD**      | GitHub Actions with automated MySQL 8.0 service & migrations container                     |
 
 ---
 

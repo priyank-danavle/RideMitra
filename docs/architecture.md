@@ -256,3 +256,94 @@ To ensure fast search queries across thousands of active journeys, the database 
 - **Micro-Animations:** Powered by `framer-motion` for page-level stagger effects, interactive card hover elevations, and smooth modal overlays with automatic `prefers-reduced-motion` compliance.
 - **Loading & Skeleton States:** Skeleton loaders reflect the exact structural geometry of cards and details, avoiding layout shifts (CLS).
 - **Responsive Layout:** Grid and flexbox layouts adapt smoothly from mobile viewport widths (360px) to widescreen desktop displays.
+
+---
+
+## 7. Phase 4 Architecture: Booking Engine, Seat Concurrency & Navigation Animation Polish
+
+### 7.1 Booking Lifecycle & State Machine
+
+```
+                    ┌────────────────────────────┐
+                    │          PENDING           │ ◄── Passenger requests booking
+                    └──────────────┬─────────────┘
+                                   │
+                    ┌──────────────┴─────────────┐
+                    ▼                            ▼
+     ┌────────────────────────────┐  ┌────────────────────────────┐
+     │         CONFIRMED          │  │          REJECTED          │
+     │   (Driver accepts request; │  │   (Driver rejects request; │
+     │    seats held atomically)  │  │    zero seats allocated)   │
+     └──────────────┬─────────────┘  └────────────────────────────┘
+                    │
+     ┌──────────────┴─────────────┐
+     ▼                            ▼
+┌────────────────────────────┐  ┌────────────────────────────┐
+│         COMPLETED          │  │         CANCELLED          │
+│   (Ride finished; trip     │  │ (Passenger/driver cancels; │
+│    settled successfully)   │  │  held seats released once) │
+└────────────────────────────┘  └────────────────────────────┘
+```
+
+- **Passenger Request (`PENDING`):**
+  - Authenticated passengers select seat quantities within available capacity and vehicle limits (max 1 for bikepool, max min(available, 6) for carpool).
+  - Own-ride booking is strictly blocked at the database and repository layers (`ride.driver_id !== passenger_id`).
+  - Rides in `CANCELLED`, `COMPLETED`, or with past departure times cannot be booked.
+  - Price calculation is **strictly server-side**: `price_per_seat = ride.price_per_seat`, `total_price = seats_booked * price_per_seat`. Client-supplied totals are never accepted.
+- **Driver Decision (`CONFIRMED` / `REJECTED`):**
+  - Only the driver owning the ride can accept or reject pending requests.
+  - Confirmation atomically locks the ride row, checks capacity, decrements `available_seats`, and transitions status to `CONFIRMED`.
+- **Cancellation (`CANCELLED`):**
+  - Passengers can cancel their own `PENDING` or `CONFIRMED` bookings before departure.
+  - Drivers can cancel confirmed passenger reservations if necessary.
+  - Cancelling a `CONFIRMED` booking atomically increments `available_seats` back to the ride exactly once. Cancelling a `PENDING` booking releases 0 seats since pending requests never held capacity.
+
+### 7.2 Seat Allocation Strategy & Authoritative State
+
+- **Policy:** Seats are officially held and deducted from `rides.available_seats` **upon driver confirmation (`CONFIRMED`)**, not upon submission of a pending request.
+- **Rationale:** Prevents speculative, unconfirmed passenger requests from prematurely exhausting ride capacity and denying access to other commuters.
+- **Authoritative Capacity:** `rides.available_seats` is the authoritative source of available capacity. When a booking confirms, `available_seats = available_seats - seats_booked`.
+- **Idempotency Protection:** Status transitions verify `current_status === 'PENDING'` before confirming, guaranteeing that network retries or repeated clicks cannot double-allocate seats.
+
+### 7.3 Concurrency Control Strategy: Preventing Double-Booking
+
+To prevent race conditions where concurrent requests compete for the last remaining seat, RideMitra uses **MySQL InnoDB Row-Level Locking (`SELECT ... FOR UPDATE`) inside atomic transactions**:
+
+```sql
+START TRANSACTION;
+
+-- 1. Orderly row lock on the booking record
+SELECT * FROM bookings WHERE id = ? FOR UPDATE;
+
+-- 2. Row lock on the ride record (authoritative capacity boundary)
+SELECT * FROM rides WHERE id = ? FOR UPDATE;
+
+-- 3. In-transaction capacity verification
+-- IF available_seats < seats_booked THEN ROLLBACK & Return 409 Conflict
+
+-- 4. Atomic capacity decrement and status transition
+UPDATE rides SET available_seats = available_seats - ? WHERE id = ?;
+UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?;
+
+COMMIT;
+```
+
+#### Key Guarantees:
+
+1. **Isolated Authoritative Read:** Capacity is read from the database within the lock boundary. No cached or stale read is trusted.
+2. **Deterministic Lock Ordering:** In multi-record transactions, `bookings` is locked first, followed by `rides`. Consistent acquisition ordering prevents deadlocks between concurrent operations.
+3. **Rollback Safety:** If capacity is insufficient or an unhandled exception occurs, the transaction automatically issues `ROLLBACK`, restoring all rows to their original state.
+4. **Verified by Concurrency Tests:** Tested using `Promise.all` issuing parallel competing confirmation requests against a single remaining seat. Exactly one transaction commits; all competing requests fail gracefully with HTTP 409 Conflict and capacity remains exactly 0 without negative overbooking.
+
+### 7.4 Animated Page Transitions & Motion System
+
+To eliminate static page switches between navigation links, RideMitra implements a cohesive motion architecture:
+
+- **Library:** `framer-motion` integrated with `react-router-dom` v6.
+- **Route-Level Animation Shell:** `<AnimatedRoutes>` wraps all routes in `<AnimatePresence mode="wait">` using `location.pathname` as the transition key.
+- **Page Transition Wrapper:** `<PageTransition>` standardizes enter/exit animations:
+  - Exit: Smooth fade out (`opacity: 0, y: -6px`, duration 150ms).
+  - Enter: Subtle rise and fade in (`opacity: 1, y: 0`, duration 200ms, ease: `[0.22, 1, 0.36, 1]`).
+  - Automatic `ScrollToTop` reset on route change.
+- **Active Navigation Indicators:** Desktop navbar links utilize Framer Motion's shared layout animation (`layoutId="navbar-indicator"`) to smoothly glide the indicator pill beneath active routes (Dashboard, My Rides, My Bookings, Find Rides).
+- **Accessibility & Reduced Motion:** Integrated `useReducedMotion()` from Framer Motion automatically disables transform translations and reduces transitions to instant fades when `prefers-reduced-motion: reduce` is enabled.

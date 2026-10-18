@@ -58,6 +58,7 @@ async function runMigrations() {
     // If --reset flag provided, drop all tables
     if (process.argv.includes('--reset')) {
       console.log('⚠️  Reset flag detected. Dropping existing tables...');
+      await connection.query('DROP TABLE IF EXISTS bookings;');
       await connection.query('DROP TABLE IF EXISTS rides;');
       await connection.query('DROP TABLE IF EXISTS vehicles;');
       await connection.query('DROP TABLE IF EXISTS sessions;');

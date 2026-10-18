@@ -271,3 +271,71 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
+
+/**
+ * Booking lifecycle status
+ */
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
+
+/**
+ * Non-sensitive public profile of a passenger attached to a booking
+ */
+export interface BookingPassengerSummary {
+  id: string;
+  name: string;
+  bio: string | null;
+  isVerified: boolean;
+  createdAt: string;
+}
+
+/**
+ * Summary of ride attached to a passenger's booking record
+ */
+export interface BookingRideSummary {
+  id: string;
+  driverId: string;
+  origin: string;
+  destination: string;
+  pickupPoint: string | null;
+  dropoffPoint: string | null;
+  departureTime: string;
+  type: RideType;
+  status: RideStatus;
+  pricePerSeat: number;
+  availableSeats: number;
+  totalSeats: number;
+  driver?: DriverPublicProfile;
+  vehicle?: RideVehicleSummary;
+}
+
+/**
+ * Core Booking entity representing a seat reservation
+ */
+export interface Booking {
+  id: string;
+  rideId: string;
+  passengerId: string;
+  seatsBooked: number;
+  pricePerSeat: number;
+  totalPrice: number;
+  status: BookingStatus;
+  createdAt: string;
+  updatedAt: string;
+  passenger?: BookingPassengerSummary;
+  ride?: BookingRideSummary;
+}
+
+/**
+ * Request payload to create a new booking request
+ */
+export interface CreateBookingRequest {
+  rideId: string;
+  seatsBooked: number;
+}
+
+/**
+ * Response when retrieving passenger or driver bookings
+ */
+export interface BookingsResponse {
+  bookings: Booking[];
+}

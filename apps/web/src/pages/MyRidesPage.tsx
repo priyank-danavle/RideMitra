@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiClient, ApiError } from '../lib/apiClient';
+import type { Ride, UpdateRideRequest, Booking } from '@ridemitra/shared';
 import {
   Calendar,
   Clock,
@@ -13,16 +15,20 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
+  Ticket,
+  User,
+  ShieldCheck,
+  Check,
 } from 'lucide-react';
-import { apiClient, ApiError } from '../lib/apiClient';
-import type { Ride, UpdateRideRequest } from '@ridemitra/shared';
 
-type TabType = 'UPCOMING' | 'PAST' | 'CANCELLED';
+type TabType = 'UPCOMING' | 'REQUESTS' | 'PAST' | 'CANCELLED';
 
 export const MyRidesPage: React.FC = () => {
   const [rides, setRides] = useState<Ride[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('UPCOMING');
+  const [processingBookingId, setProcessingBookingId] = useState<string | null>(null);
 
   // Action states
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -38,20 +44,89 @@ export const MyRidesPage: React.FC = () => {
   const [savingCancel, setSavingCancel] = useState(false);
 
   const fetchMyRides = async () => {
-    setLoading(true);
     try {
       const res = await apiClient.getMyRides();
       setRides(Array.isArray(res?.rides) ? res.rides : []);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to retrieve your rides.');
-    } finally {
-      setLoading(false);
     }
   };
 
+  const fetchDriverBookings = async () => {
+    try {
+      const res = await apiClient.getDriverBookings();
+      setBookings(Array.isArray(res?.bookings) ? res.bookings : []);
+    } catch {
+      // Non-critical
+    }
+  };
+
+  const reloadData = async () => {
+    setLoading(true);
+    await Promise.all([fetchMyRides(), fetchDriverBookings()]);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    fetchMyRides();
+    reloadData();
   }, []);
+
+  const handleConfirmBooking = async (bookingId: string) => {
+    setProcessingBookingId(bookingId);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await apiClient.confirmBooking(bookingId);
+      setSuccessMsg('Booking confirmed! Passenger seats allocated.');
+      await reloadData();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg('Failed to confirm booking request.');
+      }
+    } finally {
+      setProcessingBookingId(null);
+    }
+  };
+
+  const handleRejectBooking = async (bookingId: string) => {
+    setProcessingBookingId(bookingId);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await apiClient.rejectBooking(bookingId);
+      setSuccessMsg('Booking request rejected.');
+      await reloadData();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg('Failed to reject booking request.');
+      }
+    } finally {
+      setProcessingBookingId(null);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    setProcessingBookingId(bookingId);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await apiClient.cancelBooking(bookingId);
+      setSuccessMsg('Booking cancelled and seats released back to available capacity.');
+      await reloadData();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg('Failed to cancel booking.');
+      }
+    } finally {
+      setProcessingBookingId(null);
+    }
+  };
 
   const now = new Date();
 
@@ -67,6 +142,8 @@ export const MyRidesPage: React.FC = () => {
     // UPCOMING: scheduled and departure in future
     return r.status === 'SCHEDULED' && departure >= now;
   });
+
+  const pendingBookingsCount = bookings.filter((b) => b.status === 'PENDING').length;
 
   // Handle Edit Click
   const handleOpenEdit = (ride: Ride) => {
@@ -228,6 +305,7 @@ export const MyRidesPage: React.FC = () => {
           marginBottom: '2rem',
           borderBottom: '1px solid var(--color-border)',
           paddingBottom: '0.5rem',
+          flexWrap: 'wrap',
         }}
       >
         <button
@@ -239,6 +317,26 @@ export const MyRidesPage: React.FC = () => {
           Upcoming Rides (
           {rides.filter((r) => r.status === 'SCHEDULED' && new Date(r.departureTime) >= now).length}
           )
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('REQUESTS')}
+          className={`btn btn-sm ${activeTab === 'REQUESTS' ? 'btn-primary' : 'btn-outline'}`}
+          style={{
+            borderRadius: 'var(--radius-md)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+          }}
+        >
+          <Ticket size={14} />
+          <span>
+            Passenger Requests (
+            {pendingBookingsCount > 0
+              ? `⚡ ${pendingBookingsCount} Pending`
+              : `${bookings.length} Total`}
+            )
+          </span>
         </button>
         <button
           type="button"
@@ -281,8 +379,240 @@ export const MyRidesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && filteredRides.length === 0 && (
+      {/* REQUESTS Tab: Aggregated Driver Requests View */}
+      {activeTab === 'REQUESTS' && !loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {bookings.length === 0 ? (
+            <div
+              className="card"
+              style={{
+                padding: '4rem 2rem',
+                textAlign: 'center',
+                backgroundColor: 'var(--color-surface-subtle)',
+                border: '2px dashed var(--color-border)',
+              }}
+            >
+              <div
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-primary-light)',
+                  color: 'var(--color-primary-dark)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <Ticket size={28} />
+              </div>
+              <h2 style={{ fontSize: '1.35rem', marginBottom: '0.5rem' }}>
+                No Passenger Booking Requests
+              </h2>
+              <p
+                style={{
+                  color: 'var(--color-text-muted)',
+                  fontSize: '0.95rem',
+                  maxWidth: '440px',
+                  marginInline: 'auto',
+                }}
+              >
+                When commuters search and request reservations on your offered rides, their booking
+                requests will appear here for your review and seat confirmation.
+              </p>
+            </div>
+          ) : (
+            bookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="card"
+                style={{
+                  padding: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  border:
+                    booking.status === 'PENDING'
+                      ? '1px solid var(--color-primary)'
+                      : '1px solid var(--color-border)',
+                }}
+              >
+                {/* Header: Route & Status */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                    paddingBottom: '0.75rem',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '1.1rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span>{booking.ride?.origin || 'Origin'}</span>
+                    <ArrowRight size={16} style={{ color: 'var(--color-primary)' }} />
+                    <span>{booking.ride?.destination || 'Destination'}</span>
+                  </div>
+
+                  <span
+                    className={`badge ${
+                      booking.status === 'CONFIRMED'
+                        ? 'badge-success'
+                        : booking.status === 'PENDING'
+                          ? 'badge-primary'
+                          : 'badge-outline'
+                    }`}
+                    style={{ fontWeight: 700 }}
+                  >
+                    {booking.status === 'PENDING' ? '⚡ Action Needed: Pending' : booking.status}
+                  </span>
+                </div>
+
+                {/* Body: Passenger Info & Seat details */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '1rem',
+                    backgroundColor: 'var(--color-surface-subtle)',
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  {/* Passenger */}
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      PASSENGER
+                    </span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      <User size={16} style={{ color: 'var(--color-primary)' }} />
+                      <span style={{ fontWeight: 700 }}>
+                        {booking.passenger?.name || 'Verified Passenger'}
+                      </span>
+                      {booking.passenger?.isVerified && (
+                        <ShieldCheck size={15} style={{ color: 'var(--color-success)' }} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Seats & Fare */}
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      SEATS REQUESTED
+                    </span>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', marginTop: '0.2rem' }}>
+                      {booking.seatsBooked} {booking.seatsBooked === 1 ? 'seat' : 'seats'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      TOTAL FARE
+                    </span>
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: '1.1rem',
+                        color: 'var(--color-primary)',
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      ₹{booking.totalPrice}
+                    </div>
+                  </div>
+
+                  {/* Remaining Capacity */}
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      REMAINING SEATS
+                    </span>
+                    <div style={{ fontWeight: 700, marginTop: '0.2rem' }}>
+                      {booking.ride?.availableSeats ?? 'N/A'} available
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '0.75rem',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Link to={`/rides/${booking.rideId}`} className="btn btn-outline btn-sm">
+                    View Ride
+                  </Link>
+
+                  {booking.status === 'PENDING' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleRejectBooking(booking.id)}
+                        disabled={processingBookingId === booking.id}
+                        className="btn btn-outline btn-sm"
+                        style={{ color: 'var(--color-error)', borderColor: '#fecaca' }}
+                      >
+                        <X size={15} /> Reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmBooking(booking.id)}
+                        disabled={
+                          processingBookingId === booking.id ||
+                          (booking.ride?.availableSeats ?? 1) < booking.seatsBooked
+                        }
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <Check size={15} />
+                        {processingBookingId === booking.id
+                          ? 'Confirming...'
+                          : 'Accept & Lock Seats'}
+                      </button>
+                    </>
+                  )}
+
+                  {booking.status === 'CONFIRMED' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBooking(booking.id)}
+                      disabled={processingBookingId === booking.id}
+                      className="btn btn-outline btn-sm"
+                      style={{ color: 'var(--color-error)', borderColor: '#fecaca' }}
+                    >
+                      <XCircle size={15} />
+                      {processingBookingId === booking.id ? 'Cancelling...' : 'Cancel Reservation'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Empty State for Rides Tabs */}
+      {activeTab !== 'REQUESTS' && !loading && filteredRides.length === 0 && (
         <div
           className="card"
           style={{
@@ -340,7 +670,7 @@ export const MyRidesPage: React.FC = () => {
       )}
 
       {/* Rides List */}
-      {!loading && filteredRides.length > 0 && (
+      {activeTab !== 'REQUESTS' && !loading && filteredRides.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <AnimatePresence>
             {filteredRides.map((ride, idx) => {
@@ -356,6 +686,10 @@ export const MyRidesPage: React.FC = () => {
                 minute: '2-digit',
               });
               const isEligibleForEdit = ride.status === 'SCHEDULED' && departureDate >= now;
+
+              const rideBookings = bookings.filter((b) => b.rideId === ride.id);
+              const pendingRideBookings = rideBookings.filter((b) => b.status === 'PENDING');
+              const confirmedRideBookings = rideBookings.filter((b) => b.status === 'CONFIRMED');
 
               return (
                 <motion.div
@@ -428,18 +762,37 @@ export const MyRidesPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <span
-                      className={`badge ${
-                        ride.status === 'SCHEDULED'
-                          ? 'badge-success'
-                          : ride.status === 'CANCELLED'
-                            ? 'badge-error'
-                            : 'badge-outline'
-                      }`}
-                      style={{ fontWeight: 700 }}
-                    >
-                      {ride.status}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {pendingRideBookings.length > 0 && (
+                        <span
+                          className="badge badge-primary"
+                          style={{ fontWeight: 700, fontSize: '0.8rem' }}
+                        >
+                          ⚡ {pendingRideBookings.length} Pending Request
+                          {pendingRideBookings.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {confirmedRideBookings.length > 0 && (
+                        <span
+                          className="badge badge-success"
+                          style={{ fontWeight: 700, fontSize: '0.8rem' }}
+                        >
+                          ✓ {confirmedRideBookings.length} Confirmed
+                        </span>
+                      )}
+                      <span
+                        className={`badge ${
+                          ride.status === 'SCHEDULED'
+                            ? 'badge-success'
+                            : ride.status === 'CANCELLED'
+                              ? 'badge-error'
+                              : 'badge-outline'
+                        }`}
+                        style={{ fontWeight: 700 }}
+                      >
+                        {ride.status}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Route & Details */}
@@ -532,6 +885,119 @@ export const MyRidesPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Passenger Bookings Panel for this Ride */}
+                  {rideBookings.length > 0 && (
+                    <div
+                      style={{
+                        marginBlock: '0.75rem 1rem',
+                        padding: '1rem',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--color-surface-subtle)',
+                        border: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          marginBottom: '0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                        }}
+                      >
+                        <Ticket size={14} style={{ color: 'var(--color-primary)' }} />
+                        <span>Passenger Reservations on this Corridor ({rideBookings.length})</span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {rideBookings.map((b) => (
+                          <div
+                            key={b.id}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '0.85rem',
+                              padding: '0.5rem 0.75rem',
+                              backgroundColor: '#ffffff',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--color-border)',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <User size={14} />
+                              <span style={{ fontWeight: 600 }}>
+                                {b.passenger?.name || 'Passenger'}
+                              </span>
+                              <span style={{ color: 'var(--color-text-muted)' }}>
+                                ({b.seatsBooked} {b.seatsBooked === 1 ? 'seat' : 'seats'} • ₹
+                                {b.totalPrice})
+                              </span>
+                              <span
+                                className={`badge ${
+                                  b.status === 'CONFIRMED'
+                                    ? 'badge-success'
+                                    : b.status === 'PENDING'
+                                      ? 'badge-primary'
+                                      : 'badge-outline'
+                                }`}
+                                style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}
+                              >
+                                {b.status}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              {b.status === 'PENDING' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectBooking(b.id)}
+                                    disabled={processingBookingId === b.id}
+                                    className="btn btn-outline btn-sm"
+                                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                                  >
+                                    Reject
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmBooking(b.id)}
+                                    disabled={
+                                      processingBookingId === b.id ||
+                                      ride.availableSeats < b.seatsBooked
+                                    }
+                                    className="btn btn-primary btn-sm"
+                                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                                  >
+                                    Accept
+                                  </button>
+                                </>
+                              )}
+                              {b.status === 'CONFIRMED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelBooking(b.id)}
+                                  disabled={processingBookingId === b.id}
+                                  className="btn btn-outline btn-sm"
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '0.2rem 0.5rem',
+                                    color: 'var(--color-error)',
+                                  }}
+                                >
+                                  Cancel Seat
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Actions Bar */}
                   <div

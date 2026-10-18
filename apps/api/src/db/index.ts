@@ -28,6 +28,26 @@ export async function query<T extends mysql.RowDataPacket[] | mysql.ResultSetHea
 }
 
 /**
+ * Executes a callback within a managed database transaction with automatic commit and rollback
+ */
+export async function withTransaction<T>(
+  callback: (connection: mysql.PoolConnection) => Promise<T>,
+): Promise<T> {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
  * Tests database connectivity for health/readiness checks
  */
 export async function testDbConnection(): Promise<boolean> {
