@@ -20,6 +20,12 @@ interface RideRow extends RowDataPacket {
   destination: string;
   pickup_point: string | null;
   dropoff_point: string | null;
+  pickup_lat?: number | string | null;
+  pickup_lng?: number | string | null;
+  dropoff_lat?: number | string | null;
+  dropoff_lng?: number | string | null;
+  distance_km?: number | string | null;
+  duration_minutes?: number | null;
   departure_time: Date | string;
   total_seats: number;
   available_seats: number;
@@ -58,6 +64,20 @@ function mapRowToRide(row: RideRow): Ride {
     destination: row.destination,
     pickupPoint: row.pickup_point,
     dropoffPoint: row.dropoff_point,
+    pickupLat:
+      row.pickup_lat !== null && row.pickup_lat !== undefined ? Number(row.pickup_lat) : null,
+    pickupLng:
+      row.pickup_lng !== null && row.pickup_lng !== undefined ? Number(row.pickup_lng) : null,
+    dropoffLat:
+      row.dropoff_lat !== null && row.dropoff_lat !== undefined ? Number(row.dropoff_lat) : null,
+    dropoffLng:
+      row.dropoff_lng !== null && row.dropoff_lng !== undefined ? Number(row.dropoff_lng) : null,
+    distanceKm:
+      row.distance_km !== null && row.distance_km !== undefined ? Number(row.distance_km) : null,
+    durationMinutes:
+      row.duration_minutes !== null && row.duration_minutes !== undefined
+        ? Number(row.duration_minutes)
+        : null,
     departureTime: new Date(row.departure_time).toISOString(),
     totalSeats: Number(row.total_seats),
     availableSeats: Number(row.available_seats),
@@ -125,9 +145,10 @@ export const rideRepository = {
     await query<ResultSetHeader>(
       `INSERT INTO rides (
         id, driver_id, vehicle_id, type, origin, destination,
-        pickup_point, dropoff_point, departure_time,
+        pickup_point, dropoff_point, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+        distance_km, duration_minutes, departure_time,
         total_seats, available_seats, price_per_seat, description, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED');`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SCHEDULED');`,
       [
         id,
         driverId,
@@ -137,6 +158,14 @@ export const rideRepository = {
         data.destination.trim(),
         data.pickupPoint ? data.pickupPoint.trim() : null,
         data.dropoffPoint ? data.dropoffPoint.trim() : null,
+        data.pickupLat !== undefined && data.pickupLat !== null ? data.pickupLat : null,
+        data.pickupLng !== undefined && data.pickupLng !== null ? data.pickupLng : null,
+        data.dropoffLat !== undefined && data.dropoffLat !== null ? data.dropoffLat : null,
+        data.dropoffLng !== undefined && data.dropoffLng !== null ? data.dropoffLng : null,
+        data.distanceKm !== undefined && data.distanceKm !== null ? data.distanceKm : null,
+        data.durationMinutes !== undefined && data.durationMinutes !== null
+          ? data.durationMinutes
+          : null,
         formattedDeparture,
         data.availableSeats,
         data.availableSeats,
@@ -301,6 +330,22 @@ export const rideRepository = {
     if (updates.dropoffPoint !== undefined) {
       fields.push('dropoff_point = ?');
       values.push(updates.dropoffPoint ? updates.dropoffPoint.trim() : null);
+    }
+    if (updates.pickupLat !== undefined) {
+      fields.push('pickup_lat = ?');
+      values.push(updates.pickupLat !== null ? updates.pickupLat : null);
+    }
+    if (updates.pickupLng !== undefined) {
+      fields.push('pickup_lng = ?');
+      values.push(updates.pickupLng !== null ? updates.pickupLng : null);
+    }
+    if (updates.dropoffLat !== undefined) {
+      fields.push('dropoff_lat = ?');
+      values.push(updates.dropoffLat !== null ? updates.dropoffLat : null);
+    }
+    if (updates.dropoffLng !== undefined) {
+      fields.push('dropoff_lng = ?');
+      values.push(updates.dropoffLng !== null ? updates.dropoffLng : null);
     }
     if (updates.departureTime !== undefined) {
       fields.push('departure_time = ?');

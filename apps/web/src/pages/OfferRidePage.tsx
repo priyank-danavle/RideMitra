@@ -11,9 +11,15 @@ import {
   Users,
   IndianRupee,
   ArrowRight,
+  Navigation,
 } from 'lucide-react';
 import { apiClient, ApiError } from '../lib/apiClient';
 import type { Vehicle, RideType } from '@ridemitra/shared';
+import { POPULAR_CITIES, POPULAR_CITY_COORDINATES } from '@ridemitra/shared';
+import { RouteMap } from '../components/maps/RouteMap';
+import { RouteMetricsBadge } from '../components/maps/RouteMetricsBadge';
+import { MapErrorBoundary } from '../components/maps/MapErrorBoundary';
+import { fetchOsrmRoute, OsrmRouteResult } from '../lib/osrm';
 
 export const OfferRidePage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +34,15 @@ export const OfferRidePage: React.FC = () => {
   const [pickupPoint, setPickupPoint] = useState('');
   const [dropoffPoint, setDropoffPoint] = useState('');
   const [rideType, setRideType] = useState<RideType>('CITY');
+
+  // Geographic coordinates & routing states (Optional Leaflet + OSRM enhancement)
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isPickupApproximate, setIsPickupApproximate] = useState<boolean>(false);
+  const [isDropoffApproximate, setIsDropoffApproximate] = useState<boolean>(false);
+  const [activeSelection, setActiveSelection] = useState<'origin' | 'destination'>('origin');
+  const [osrmResult, setOsrmResult] = useState<OsrmRouteResult | null>(null);
+  const [calculatingRoute, setCalculatingRoute] = useState(false);
 
   // Schedule states
   const todayStr = new Date().toISOString().split('T')[0];
@@ -68,6 +83,81 @@ export const OfferRidePage: React.FC = () => {
   }, []);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+
+  // Helper to match city name against known corridor coordinates
+  const resolveCityCoordinates = (cityName: string): { lat: number; lng: number } | null => {
+    const clean = cityName.trim().toLowerCase();
+    if (!clean) return null;
+    for (const [key, coords] of Object.entries(POPULAR_CITY_COORDINATES)) {
+      if (
+        clean === key.toLowerCase() ||
+        clean.startsWith(key.toLowerCase()) ||
+        clean.includes(key.toLowerCase())
+      ) {
+        return coords;
+      }
+    }
+    return null;
+  };
+
+  // Auto-seed pickup coordinates when user changes origin city, or clear if unrecognized/empty
+  const handleOriginChange = (val: string) => {
+    setOrigin(val);
+    const resolved = resolveCityCoordinates(val);
+    if (resolved) {
+      setPickupCoords(resolved);
+      setIsPickupApproximate(true);
+    } else {
+      setPickupCoords(null);
+      setIsPickupApproximate(false);
+    }
+  };
+
+  // Auto-seed drop-off coordinates when user changes destination city, or clear if unrecognized/empty
+  const handleDestinationChange = (val: string) => {
+    setDestination(val);
+    const resolved = resolveCityCoordinates(val);
+    if (resolved) {
+      setDropoffCoords(resolved);
+      setIsDropoffApproximate(true);
+    } else {
+      setDropoffCoords(null);
+      setIsDropoffApproximate(false);
+    }
+  };
+
+  // Fetch OSRM driving route when both pickup and drop-off coordinates are set
+  useEffect(() => {
+    if (!pickupCoords || !dropoffCoords) {
+      setOsrmResult(null);
+      return;
+    }
+
+    let isMounted = true;
+    setCalculatingRoute(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const route = await fetchOsrmRoute(pickupCoords, dropoffCoords);
+        if (isMounted) {
+          setOsrmResult(route);
+        }
+      } catch {
+        if (isMounted) {
+          setOsrmResult(null);
+        }
+      } finally {
+        if (isMounted) {
+          setCalculatingRoute(false);
+        }
+      }
+    }, 350); // 350ms debounce to prevent spamming demo server on marker drag
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [pickupCoords?.lat, pickupCoords?.lng, dropoffCoords?.lat, dropoffCoords?.lng]);
 
   const handleVehicleChange = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
@@ -139,6 +229,12 @@ export const OfferRidePage: React.FC = () => {
         destination: destination.trim(),
         pickupPoint: pickupPoint.trim() || undefined,
         dropoffPoint: dropoffPoint.trim() || undefined,
+        pickupLat: pickupCoords?.lat ?? undefined,
+        pickupLng: pickupCoords?.lng ?? undefined,
+        dropoffLat: dropoffCoords?.lat ?? undefined,
+        dropoffLng: dropoffCoords?.lng ?? undefined,
+        distanceKm: osrmResult?.distanceKm ?? undefined,
+        durationMinutes: osrmResult?.durationMinutes ?? undefined,
         type: rideType,
         departureTime: departureDateTime.toISOString(),
         availableSeats: seatsOffered,
@@ -394,7 +490,7 @@ export const OfferRidePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Origin & Destination */}
+                {/* Origin & Destination with Popular City Autocomplete Datalist */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <label htmlFor="origin" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
@@ -403,16 +499,22 @@ export const OfferRidePage: React.FC = () => {
                     <input
                       id="origin"
                       type="text"
+                      list="popular-cities-origin"
                       required
                       placeholder="e.g. Surat, Adajan"
                       value={origin}
-                      onChange={(e) => setOrigin(e.target.value)}
+                      onChange={(e) => handleOriginChange(e.target.value)}
                       style={{
                         padding: '0.75rem 1rem',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--color-border)',
                       }}
                     />
+                    <datalist id="popular-cities-origin">
+                      {POPULAR_CITIES.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -422,16 +524,22 @@ export const OfferRidePage: React.FC = () => {
                     <input
                       id="destination"
                       type="text"
+                      list="popular-cities-destination"
                       required
                       placeholder="e.g. Ahmedabad, SG Highway"
                       value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
                       style={{
                         padding: '0.75rem 1rem',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--color-border)',
                       }}
                     />
+                    <datalist id="popular-cities-destination">
+                      {POPULAR_CITIES.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
 
@@ -471,6 +579,188 @@ export const OfferRidePage: React.FC = () => {
                         border: '1px solid var(--color-border)',
                       }}
                     />
+                  </div>
+                </div>
+
+                {/* Phase 5.3: Interactive Leaflet Map Preview & OSRM Route Metrics */}
+                <div style={{ marginTop: '0.75rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    <div>
+                      <span
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Navigation size={16} style={{ color: 'var(--color-primary)' }} />
+                        Route Map Preview (OpenStreetMap & OSRM)
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--color-text-muted)',
+                          display: 'block',
+                          marginTop: '2px',
+                        }}
+                      >
+                        Drag markers or click map to pinpoint pickup and drop-off coordinates
+                      </span>
+                    </div>
+
+                    {/* Active pin selector buttons */}
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveSelection('origin')}
+                        className="btn btn-sm"
+                        style={{
+                          fontSize: '0.775rem',
+                          padding: '4px 10px',
+                          backgroundColor:
+                            activeSelection === 'origin' ? '#059669' : 'transparent',
+                          color: activeSelection === 'origin' ? '#ffffff' : 'var(--color-text)',
+                          border: '1px solid',
+                          borderColor: activeSelection === 'origin' ? '#059669' : 'var(--color-border)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: activeSelection === 'origin' ? '#ffffff' : '#059669',
+                          }}
+                        />
+                        Set Pickup
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveSelection('destination')}
+                        className="btn btn-sm"
+                        style={{
+                          fontSize: '0.775rem',
+                          padding: '4px 10px',
+                          backgroundColor:
+                            activeSelection === 'destination' ? '#4f46e5' : 'transparent',
+                          color: activeSelection === 'destination' ? '#ffffff' : 'var(--color-text)',
+                          border: '1px solid',
+                          borderColor:
+                            activeSelection === 'destination' ? '#4f46e5' : 'var(--color-border)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor:
+                              activeSelection === 'destination' ? '#ffffff' : '#4f46e5',
+                          }}
+                        />
+                        Set Drop-off
+                      </button>
+                    </div>
+                  </div>
+
+                  <MapErrorBoundary fallbackText="Route map preview temporarily unavailable. You can still publish your ride.">
+                    <RouteMap
+                      origin={
+                        pickupCoords
+                          ? {
+                              lat: pickupCoords.lat,
+                              lng: pickupCoords.lng,
+                              label: pickupPoint || origin || 'Pickup Point',
+                              isApproximate: isPickupApproximate,
+                            }
+                          : null
+                      }
+                      destination={
+                        dropoffCoords
+                          ? {
+                              lat: dropoffCoords.lat,
+                              lng: dropoffCoords.lng,
+                              label: dropoffPoint || destination || 'Drop-off Point',
+                              isApproximate: isDropoffApproximate,
+                            }
+                          : null
+                      }
+                      polyline={osrmResult?.polylineCoordinates}
+                      editable={true}
+                      activeSelection={activeSelection}
+                      onOriginChange={(pos) => {
+                        setPickupCoords(pos);
+                        setIsPickupApproximate(false);
+                      }}
+                      onDestinationChange={(pos) => {
+                        setDropoffCoords(pos);
+                        setIsDropoffApproximate(false);
+                      }}
+                      height="300px"
+                    />
+                  </MapErrorBoundary>
+
+                  {(isPickupApproximate || isDropoffApproximate) && (
+                    <div
+                      style={{
+                        marginTop: '0.5rem',
+                        padding: '8px 12px',
+                        backgroundColor: '#fef3c7',
+                        border: '1px solid #fde68a',
+                        borderRadius: 'var(--radius-md, 8px)',
+                        color: '#92400e',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <span>📍</span>
+                      <span>
+                        Approximate city center — adjust the pin for your exact location.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Route Metrics (Distance & Duration) */}
+                  <div style={{ marginTop: '0.75rem' }}>
+                    {calculatingRoute ? (
+                      <span
+                        style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-muted)',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        Estimating driving road distance & duration via OSRM...
+                      </span>
+                    ) : (
+                      <RouteMetricsBadge
+                        distanceKm={osrmResult?.distanceKm}
+                        durationMinutes={osrmResult?.durationMinutes}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

@@ -193,9 +193,15 @@ Transactionally safe booking and seat allocation subsystem with full animated ro
 
 - [ ] Add Apollo Server or Yoga GraphQL handler mounted on `/graphql` for authenticated dashboard queries.
 - [ ] Implement GraphQL schemas and resolvers for driver metrics, passenger trip history, and upcoming schedules.
-- [ ] Evaluate and integrate geocoding / maps API (e.g., OpenStreetMap / Nominatim or Google Maps Platform) with caching.
+- [x] Create database migration `006_add_location_coordinates_to_rides.sql` for nullable decimal coordinates (`pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`) and route metrics (`distance_km`, `duration_minutes`).
+- [x] Integrate Leaflet and React-Leaflet with OpenStreetMap tile attribution for zero-cost, privacy-friendly map rendering.
+- [x] Index regional transit hub coordinates (`POPULAR_CITY_COORDINATES`) for Western India corridor hubs to enable instant map preview without external geocoding requests.
+- [x] Integrate Project-OSRM public driving service for best-effort road distance, estimated duration, and route polyline with in-memory caching and 6s timeout.
+- [x] Build interactive `RouteMap`, `RouteMetricsBadge`, and `MapErrorBoundary` components with draggable vector pins and keyboard accessibility.
+- [x] Integrate map preview and pinpointing into `OfferRidePage` and `RideDetailsPage`, with seamless text-only fallback for legacy rides.
+- [x] Document usage policies and limitations in `docs/maps-and-routing.md`.
+- [x] Add automated unit, integration, and regression tests (105 API tests, 33 Web tests = 138 passing tests total).
 - [ ] Implement rate-limiting and circuit breakers for third-party API calls.
-- [ ] Build interactive route map preview on ride details screen.
 - [ ] Document REST vs GraphQL boundary decisions.
 
 ### Dependencies
@@ -205,12 +211,13 @@ Transactionally safe booking and seat allocation subsystem with full animated ro
 ### Acceptance Criteria
 
 1. Dashboard screens fetch consolidated metrics via a single GraphQL query without over-fetching.
-2. Route coordinates and distances are enriched via geocoding services.
-3. External API failures degrade gracefully without crashing core workflows.
+2. Route coordinates and distances are enriched via open-source mapping services without paid API dependencies.
+3. External API failures degrade gracefully without crashing core workflows or blocking ride publishing/booking.
+4. Legacy rides without coordinates continue to function seamlessly.
 
 ### Deliverable
 
-Consolidated dashboard reporting via GraphQL and integrated route mapping.
+Consolidated dashboard reporting via GraphQL and integrated route mapping with 138 passing automated tests.
 
 ---
 

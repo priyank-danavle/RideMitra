@@ -18,10 +18,16 @@ import {
   X,
   Minus,
   Plus,
+  Navigation,
 } from 'lucide-react';
 import { apiClient, ApiError } from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext';
 import type { Ride, Booking } from '@ridemitra/shared';
+import { POPULAR_CITY_COORDINATES } from '@ridemitra/shared';
+import { RouteMap } from '../components/maps/RouteMap';
+import { RouteMetricsBadge } from '../components/maps/RouteMetricsBadge';
+import { MapErrorBoundary } from '../components/maps/MapErrorBoundary';
+import { fetchOsrmRoute } from '../lib/osrm';
 
 export const RideDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +36,7 @@ export const RideDetailsPage: React.FC = () => {
   const [ride, setRide] = useState<Ride | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [osrmPolyline, setOsrmPolyline] = useState<[number, number][] | null>(null);
 
   // Booking state
   const [existingBooking, setExistingBooking] = useState<Booking | null>(null);
@@ -89,6 +96,87 @@ export const RideDetailsPage: React.FC = () => {
       isMounted = false;
     };
   }, [id, isAuthenticated]);
+
+  // Helper to match city name against known corridor coordinates
+  const resolveCityCoordinates = (cityName: string): { lat: number; lng: number } | null => {
+    const clean = cityName.trim().toLowerCase();
+    for (const [key, coords] of Object.entries(POPULAR_CITY_COORDINATES)) {
+      if (
+        clean === key.toLowerCase() ||
+        clean.startsWith(key.toLowerCase()) ||
+        clean.includes(key.toLowerCase())
+      ) {
+        return coords;
+      }
+    }
+    return null;
+  };
+
+  // Derive pickup and drop-off coordinates (explicit stored coordinates or known transit hub fallback)
+  const pickupCoords = React.useMemo(() => {
+    if (!ride) return null;
+    if (
+      ride.pickupLat !== null &&
+      ride.pickupLat !== undefined &&
+      ride.pickupLng !== null &&
+      ride.pickupLng !== undefined
+    ) {
+      return { lat: Number(ride.pickupLat), lng: Number(ride.pickupLng) };
+    }
+    return resolveCityCoordinates(ride.origin);
+  }, [ride]);
+
+  const dropoffCoords = React.useMemo(() => {
+    if (!ride) return null;
+    if (
+      ride.dropoffLat !== null &&
+      ride.dropoffLat !== undefined &&
+      ride.dropoffLng !== null &&
+      ride.dropoffLng !== undefined
+    ) {
+      return { lat: Number(ride.dropoffLat), lng: Number(ride.dropoffLng) };
+    }
+    return resolveCityCoordinates(ride.destination);
+  }, [ride]);
+
+  const isPickupApproximate = React.useMemo(() => {
+    if (!pickupCoords) return false;
+    return Object.values(POPULAR_CITY_COORDINATES).some(
+      (c) => Math.abs(c.lat - pickupCoords.lat) < 0.0001 && Math.abs(c.lng - pickupCoords.lng) < 0.0001,
+    );
+  }, [pickupCoords]);
+
+  const isDropoffApproximate = React.useMemo(() => {
+    if (!dropoffCoords) return false;
+    return Object.values(POPULAR_CITY_COORDINATES).some(
+      (c) => Math.abs(c.lat - dropoffCoords.lat) < 0.0001 && Math.abs(c.lng - dropoffCoords.lng) < 0.0001,
+    );
+  }, [dropoffCoords]);
+
+  // Fetch OSRM polyline for smooth road corridor rendering
+  useEffect(() => {
+    if (!pickupCoords || !dropoffCoords) {
+      setOsrmPolyline(null);
+      return;
+    }
+
+    let isMounted = true;
+    async function fetchPolyline() {
+      try {
+        const res = await fetchOsrmRoute(pickupCoords!, dropoffCoords!);
+        if (isMounted && res) {
+          setOsrmPolyline(res.polylineCoordinates);
+        }
+      } catch {
+        if (isMounted) setOsrmPolyline(null);
+      }
+    }
+
+    fetchPolyline();
+    return () => {
+      isMounted = false;
+    };
+  }, [pickupCoords?.lat, pickupCoords?.lng, dropoffCoords?.lat, dropoffCoords?.lng]);
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -361,6 +449,90 @@ export const RideDetailsPage: React.FC = () => {
                   {ride.dropoffPoint || 'To be coordinated with driver'}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Phase 5.3: Interactive Route Map & Distance Metrics */}
+          {(pickupCoords || dropoffCoords) && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Navigation size={16} style={{ color: 'var(--color-primary)' }} />
+                  Interactive Route Map (OpenStreetMap & OSRM)
+                </span>
+
+                <RouteMetricsBadge
+                  distanceKm={ride.distanceKm}
+                  durationMinutes={ride.durationMinutes}
+                />
+              </div>
+
+              <MapErrorBoundary fallbackText="Route map preview temporarily unavailable. All booking actions remain active.">
+                <RouteMap
+                  origin={
+                    pickupCoords
+                      ? {
+                          lat: pickupCoords.lat,
+                          lng: pickupCoords.lng,
+                          label: ride.pickupPoint || ride.origin,
+                          isApproximate: isPickupApproximate,
+                        }
+                      : null
+                  }
+                  destination={
+                    dropoffCoords
+                      ? {
+                          lat: dropoffCoords.lat,
+                          lng: dropoffCoords.lng,
+                          label: ride.dropoffPoint || ride.destination,
+                          isApproximate: isDropoffApproximate,
+                        }
+                      : null
+                  }
+                  polyline={osrmPolyline}
+                  editable={false}
+                  height="280px"
+                />
+              </MapErrorBoundary>
+
+              {(isPickupApproximate || isDropoffApproximate) && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--color-surface-subtle)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    color: 'var(--color-text-muted)',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <span>ℹ️</span>
+                  <span>
+                    Approximate city center — please coordinate with the driver for your exact pickup and drop-off spot.
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

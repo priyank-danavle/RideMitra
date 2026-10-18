@@ -25,6 +25,43 @@ const createRideSchema = z
       .max(100, 'Destination cannot exceed 100 characters'),
     pickupPoint: z.string().trim().max(255).nullable().optional(),
     dropoffPoint: z.string().trim().max(255).nullable().optional(),
+    pickupLat: z
+      .number({ invalid_type_error: 'Pickup latitude must be a number' })
+      .min(-90, 'Pickup latitude must be between -90 and 90')
+      .max(90, 'Pickup latitude must be between -90 and 90')
+      .nullable()
+      .optional(),
+    pickupLng: z
+      .number({ invalid_type_error: 'Pickup longitude must be a number' })
+      .min(-180, 'Pickup longitude must be between -180 and 180')
+      .max(180, 'Pickup longitude must be between -180 and 180')
+      .nullable()
+      .optional(),
+    dropoffLat: z
+      .number({ invalid_type_error: 'Dropoff latitude must be a number' })
+      .min(-90, 'Dropoff latitude must be between -90 and 90')
+      .max(90, 'Dropoff latitude must be between -90 and 90')
+      .nullable()
+      .optional(),
+    dropoffLng: z
+      .number({ invalid_type_error: 'Dropoff longitude must be a number' })
+      .min(-180, 'Dropoff longitude must be between -180 and 180')
+      .max(180, 'Dropoff longitude must be between -180 and 180')
+      .nullable()
+      .optional(),
+    distanceKm: z
+      .number({ invalid_type_error: 'Distance must be a number' })
+      .positive('Distance must be greater than 0')
+      .max(5000, 'Distance exceeds allowed threshold')
+      .nullable()
+      .optional(),
+    durationMinutes: z
+      .number({ invalid_type_error: 'Duration must be a number' })
+      .int('Duration minutes must be a whole number')
+      .positive('Duration must be greater than 0')
+      .max(10080, 'Duration exceeds allowed threshold')
+      .nullable()
+      .optional(),
     departureTime: z
       .string()
       .trim()
@@ -53,12 +90,58 @@ const createRideSchema = z
       .nullable()
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => {
+      const hasPickupLat = data.pickupLat !== undefined && data.pickupLat !== null;
+      const hasPickupLng = data.pickupLng !== undefined && data.pickupLng !== null;
+      return (hasPickupLat && hasPickupLng) || (!hasPickupLat && !hasPickupLng);
+    },
+    {
+      message: 'Both pickup latitude and longitude must be provided together',
+      path: ['pickupLat'],
+    },
+  )
+  .refine(
+    (data) => {
+      const hasDropoffLat = data.dropoffLat !== undefined && data.dropoffLat !== null;
+      const hasDropoffLng = data.dropoffLng !== undefined && data.dropoffLng !== null;
+      return (hasDropoffLat && hasDropoffLng) || (!hasDropoffLat && !hasDropoffLng);
+    },
+    {
+      message: 'Both dropoff latitude and longitude must be provided together',
+      path: ['dropoffLat'],
+    },
+  );
 
 const updateRideSchema = z
   .object({
     pickupPoint: z.string().trim().max(255).nullable().optional(),
     dropoffPoint: z.string().trim().max(255).nullable().optional(),
+    pickupLat: z
+      .number({ invalid_type_error: 'Pickup latitude must be a number' })
+      .min(-90, 'Pickup latitude must be between -90 and 90')
+      .max(90, 'Pickup latitude must be between -90 and 90')
+      .nullable()
+      .optional(),
+    pickupLng: z
+      .number({ invalid_type_error: 'Pickup longitude must be a number' })
+      .min(-180, 'Pickup longitude must be between -180 and 180')
+      .max(180, 'Pickup longitude must be between -180 and 180')
+      .nullable()
+      .optional(),
+    dropoffLat: z
+      .number({ invalid_type_error: 'Dropoff latitude must be a number' })
+      .min(-90, 'Dropoff latitude must be between -90 and 90')
+      .max(90, 'Dropoff latitude must be between -90 and 90')
+      .nullable()
+      .optional(),
+    dropoffLng: z
+      .number({ invalid_type_error: 'Dropoff longitude must be a number' })
+      .min(-180, 'Dropoff longitude must be between -180 and 180')
+      .max(180, 'Dropoff longitude must be between -180 and 180')
+      .nullable()
+      .optional(),
     departureTime: z
       .string()
       .trim()
@@ -83,7 +166,29 @@ const updateRideSchema = z
       .optional(),
     description: z.string().trim().max(1000).nullable().optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => {
+      const hasPickupLat = data.pickupLat !== undefined && data.pickupLat !== null;
+      const hasPickupLng = data.pickupLng !== undefined && data.pickupLng !== null;
+      return (hasPickupLat && hasPickupLng) || (!hasPickupLat && !hasPickupLng);
+    },
+    {
+      message: 'Both pickup latitude and longitude must be provided together',
+      path: ['pickupLat'],
+    },
+  )
+  .refine(
+    (data) => {
+      const hasDropoffLat = data.dropoffLat !== undefined && data.dropoffLat !== null;
+      const hasDropoffLng = data.dropoffLng !== undefined && data.dropoffLng !== null;
+      return (hasDropoffLat && hasDropoffLng) || (!hasDropoffLat && !hasDropoffLng);
+    },
+    {
+      message: 'Both dropoff latitude and longitude must be provided together',
+      path: ['dropoffLat'],
+    },
+  );
 
 /**
  * POST /api/v1/rides

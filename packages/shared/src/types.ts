@@ -203,6 +203,12 @@ export interface Ride {
   destination: string;
   pickupPoint: string | null;
   dropoffPoint: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
+  distanceKm?: number | null;
+  durationMinutes?: number | null;
   departureTime: string; // ISO 8601 string
   totalSeats: number;
   availableSeats: number;
@@ -225,6 +231,12 @@ export interface CreateRideRequest {
   destination: string;
   pickupPoint?: string | null;
   dropoffPoint?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
+  distanceKm?: number | null;
+  durationMinutes?: number | null;
   departureTime: string;
   availableSeats: number;
   pricePerSeat?: number;
@@ -237,6 +249,10 @@ export interface CreateRideRequest {
 export interface UpdateRideRequest {
   pickupPoint?: string | null;
   dropoffPoint?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
   departureTime?: string;
   availableSeats?: number;
   pricePerSeat?: number;

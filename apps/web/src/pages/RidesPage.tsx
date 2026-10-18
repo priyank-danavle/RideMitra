@@ -637,6 +637,19 @@ export const RidesPage: React.FC = () => {
                           </>
                         )}
                       </span>
+                      {ride.distanceKm ? (
+                        <span
+                          className="badge badge-outline"
+                          style={{
+                            fontSize: '0.75rem',
+                            padding: '2px 8px',
+                            color: 'var(--color-primary)',
+                            borderColor: 'var(--color-primary-subtle, #bfdbfe)',
+                          }}
+                        >
+                          {ride.distanceKm} km
+                        </span>
+                      ) : null}
                     </div>
 
                     {/* Price Tag */}

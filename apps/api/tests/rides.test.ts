@@ -304,4 +304,244 @@ describe('Phase 3 Ride Management & Discovery API', () => {
     expect(searchRes.status).toBe(200);
     expect(searchRes.body.data.items.some((r: Ride) => r.id === createdRideId)).toBe(false);
   });
+
+  describe('Phase 5.3 Location Coordinates & Backward Compatibility', () => {
+    let geoRideId: string;
+
+    it('POST /api/v1/rides should publish ride with valid coordinates and distance metrics', async () => {
+      const departure = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString();
+
+      const res = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          pickupPoint: 'ISCON Cross Roads',
+          dropoffPoint: 'Majura Gate',
+          pickupLat: 23.0225123,
+          pickupLng: 72.5714456,
+          dropoffLat: 21.1702789,
+          dropoffLng: 72.8311123,
+          distanceKm: 265.4,
+          durationMinutes: 270,
+          departureTime: departure,
+          availableSeats: 3,
+          pricePerSeat: 450,
+          description: 'Route with coordinates and OSRM distance metrics.',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      const ride = res.body.data.ride;
+      expect(ride.pickupLat).toBeCloseTo(23.0225123, 5);
+      expect(ride.pickupLng).toBeCloseTo(72.5714456, 5);
+      expect(ride.dropoffLat).toBeCloseTo(21.1702789, 5);
+      expect(ride.dropoffLng).toBeCloseTo(72.8311123, 5);
+      expect(ride.distanceKm).toBeCloseTo(265.4, 1);
+      expect(ride.durationMinutes).toBe(270);
+
+      geoRideId = ride.id;
+    });
+
+    it('GET /api/v1/rides/:id should return exact saved coordinates', async () => {
+      const res = await request(app).get(`/api/v1/rides/${geoRideId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      const ride = res.body.data.ride;
+      expect(ride.pickupLat).toBeCloseTo(23.0225123, 5);
+      expect(ride.pickupLng).toBeCloseTo(72.5714456, 5);
+      expect(ride.distanceKm).toBe(265.4);
+      expect(ride.durationMinutes).toBe(270);
+    });
+
+    it('POST /api/v1/rides should reject out-of-range latitude (> 90)', async () => {
+      const departure = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString();
+
+      const res = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          pickupLat: 95.5, // Invalid: exceeds 90
+          pickupLng: 72.57,
+          dropoffLat: 21.17,
+          dropoffLng: 72.83,
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.message).toContain('between -90 and 90');
+    });
+
+    it('POST /api/v1/rides should reject coordinate pair when latitude is provided without longitude', async () => {
+      const departure = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString();
+
+      const res = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          pickupLat: 23.02,
+          // pickupLng is missing!
+          dropoffLat: 21.17,
+          dropoffLng: 72.83,
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.message).toContain('provided together');
+    });
+
+    it('Legacy rides without coordinates should return null coordinate values cleanly without breaking discovery', async () => {
+      const departure = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString();
+
+      // Create a ride WITHOUT coordinates (like legacy rides from Phase 3/4)
+      const res = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Surat',
+          destination: 'Vadodara',
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(res.status).toBe(201);
+      const ride = res.body.data.ride;
+      expect(ride.pickupLat).toBeNull();
+      expect(ride.pickupLng).toBeNull();
+      expect(ride.dropoffLat).toBeNull();
+      expect(ride.dropoffLng).toBeNull();
+      expect(ride.distanceKm).toBeNull();
+      expect(ride.durationMinutes).toBeNull();
+
+      // Search rides and verify legacy ride is returned seamlessly
+      const searchRes = await request(app).get('/api/v1/rides').query({
+        origin: 'Surat',
+        destination: 'Vadodara',
+      });
+      expect(searchRes.status).toBe(200);
+      const found = searchRes.body.data.items.find((r: Ride) => r.id === ride.id);
+      expect(found).toBeDefined();
+      expect(found.pickupLat).toBeNull();
+    });
+
+    it('POST /api/v1/rides should reject zero and negative distanceKm and durationMinutes', async () => {
+      const departure = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString();
+
+      // Test zero distanceKm
+      const zeroDistRes = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          distanceKm: 0,
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(zeroDistRes.status).toBe(400);
+      expect(zeroDistRes.body.success).toBe(false);
+      expect(zeroDistRes.body.error.message).toContain('greater than 0');
+
+      // Test negative distanceKm
+      const negDistRes = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          distanceKm: -25.5,
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(negDistRes.status).toBe(400);
+      expect(negDistRes.body.success).toBe(false);
+      expect(negDistRes.body.error.message).toContain('greater than 0');
+
+      // Test zero durationMinutes
+      const zeroDurRes = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          durationMinutes: 0,
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(zeroDurRes.status).toBe(400);
+      expect(zeroDurRes.body.success).toBe(false);
+      expect(zeroDurRes.body.error.message).toContain('greater than 0');
+
+      // Test negative durationMinutes
+      const negDurRes = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          durationMinutes: -120,
+          departureTime: departure,
+          availableSeats: 2,
+        });
+
+      expect(negDurRes.status).toBe(400);
+      expect(negDurRes.body.success).toBe(false);
+      expect(negDurRes.body.error.message).toContain('greater than 0');
+    });
+
+    it('POST /api/v1/rides should accept valid positive distanceKm and durationMinutes', async () => {
+      const departure = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString();
+
+      const res = await request(app)
+        .post('/api/v1/rides')
+        .set('Authorization', `Bearer ${driverAToken}`)
+        .send({
+          vehicleId: driverACarId,
+          type: 'INTERCITY',
+          origin: 'Ahmedabad',
+          destination: 'Surat',
+          pickupLat: 23.0225,
+          pickupLng: 72.5714,
+          dropoffLat: 21.1702,
+          dropoffLng: 72.8311,
+          distanceKm: 265.4,
+          durationMinutes: 270,
+          departureTime: departure,
+          availableSeats: 3,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.ride.distanceKm).toBe(265.4);
+      expect(res.body.data.ride.durationMinutes).toBe(270);
+    });
+  });
 });
