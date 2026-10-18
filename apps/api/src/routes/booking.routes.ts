@@ -132,6 +132,16 @@ bookingRouter.get(
         data: { bookings },
       });
     } catch (error) {
+      if (error instanceof BookingRepositoryError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        });
+        return;
+      }
       next(error);
     }
   },

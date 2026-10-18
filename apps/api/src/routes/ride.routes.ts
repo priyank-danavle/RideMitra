@@ -111,7 +111,7 @@ rideRouter.post(
       const data = parsed.data;
 
       // 1. Verify vehicle ownership and active status
-      const vehicle = await vehicleRepository.findVehicleById(data.vehicleId, driverId);
+      const vehicle = await vehicleRepository.findVehicleById(data.vehicleId, driverId, true);
       if (!vehicle) {
         res.status(403).json({
           success: false,
@@ -222,28 +222,28 @@ rideRouter.get('/', async (req: Request, res: Response, next: NextFunction): Pro
 
 /**
  * GET /api/v1/rides/my-rides
+ * and GET /api/v1/rides/driver/mine
  * Retrieve all rides offered by the authenticated driver
  */
-rideRouter.get(
-  '/my-rides',
-  authenticate,
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const driverId = req.user!.id;
-      const status =
-        typeof req.query.status === 'string' ? (req.query.status as RideStatus | 'ALL') : 'ALL';
+const myRidesHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const driverId = req.user!.id;
+    const status =
+      typeof req.query.status === 'string' ? (req.query.status as RideStatus | 'ALL') : 'ALL';
 
-      const rides = await rideRepository.findDriverRides(driverId, status);
+    const rides = await rideRepository.findDriverRides(driverId, status);
 
-      res.status(200).json({
-        success: true,
-        data: { rides },
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-);
+    res.status(200).json({
+      success: true,
+      data: { rides },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+rideRouter.get('/my-rides', authenticate, myRidesHandler);
+rideRouter.get('/driver/mine', authenticate, myRidesHandler);
 
 /**
  * GET /api/v1/rides/:id

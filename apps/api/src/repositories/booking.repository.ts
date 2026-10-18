@@ -514,6 +514,23 @@ export class BookingRepository {
    * Find bookings for a specific ride (verifying driver ownership)
    */
   async findRideBookings(rideId: string, driverId: string): Promise<Booking[]> {
+    const rideRows = await query<RowDataPacket[]>(
+      'SELECT id, driver_id FROM rides WHERE id = ?;',
+      [rideId],
+    );
+
+    if (rideRows.length === 0) {
+      throw new BookingRepositoryError('Ride not found.', 404, 'NOT_FOUND');
+    }
+
+    if (rideRows[0].driver_id !== driverId) {
+      throw new BookingRepositoryError(
+        'You are not authorized to view bookings for this ride.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
     const sql = `
       ${BOOKING_SELECT_SQL} 
       WHERE b.ride_id = ? AND r.driver_id = ?

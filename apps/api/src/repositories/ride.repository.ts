@@ -9,7 +9,7 @@ import type {
   RideStatus,
   SpecificVehicleType,
 } from '@ridemitra/shared';
-import { query } from '../db/index.js';
+import { query, withTransaction } from '../db/index.js';
 
 interface RideRow extends RowDataPacket {
   id: string;
@@ -333,23 +333,33 @@ export const rideRepository = {
   },
 
   /**
-   * Cancels a ride belonging to driver
+   * Cancels a ride belonging to driver and cascades cancellation to all pending and confirmed bookings
    */
   async cancelRide(id: string, driverId: string): Promise<boolean> {
-    const existing = await this.findRideById(id);
-    if (!existing || existing.driverId !== driverId) {
-      return false;
-    }
+    return withTransaction(async (conn) => {
+      const [rideRows] = await conn.query<RowDataPacket[]>(
+        'SELECT id, driver_id, status FROM rides WHERE id = ? FOR UPDATE;',
+        [id],
+      );
 
-    if (existing.status === 'CANCELLED') {
+      if (rideRows.length === 0 || rideRows[0].driver_id !== driverId) {
+        return false;
+      }
+
+      if (rideRows[0].status === 'CANCELLED') {
+        return true;
+      }
+
+      // Mark ride as CANCELLED
+      await conn.query("UPDATE rides SET status = 'CANCELLED' WHERE id = ?;", [id]);
+
+      // Cascade cancellation to all active (PENDING or CONFIRMED) bookings for this ride
+      await conn.query(
+        "UPDATE bookings SET status = 'CANCELLED' WHERE ride_id = ? AND status IN ('PENDING', 'CONFIRMED');",
+        [id],
+      );
+
       return true;
-    }
-
-    const result = await query<ResultSetHeader>(
-      "UPDATE rides SET status = 'CANCELLED' WHERE id = ? AND driver_id = ?;",
-      [id, driverId],
-    );
-
-    return result.affectedRows > 0;
+    });
   },
 };

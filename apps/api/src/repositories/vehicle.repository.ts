@@ -86,11 +86,16 @@ export const vehicleRepository = {
     return rows.map(mapVehicleRowToEntity);
   },
 
-  async findVehicleById(id: string, userId: string): Promise<Vehicle | null> {
+  async findVehicleById(
+    id: string,
+    userId: string,
+    includeInactive: boolean = false,
+  ): Promise<Vehicle | null> {
+    const activeClause = includeInactive ? '' : ' AND is_active = TRUE';
     const rows = await query<VehicleDbRow[]>(
       `SELECT id, user_id, type, make, model, year, color, registration_number, capacity, is_verified, is_active, created_at, updated_at
        FROM vehicles
-       WHERE id = ? AND user_id = ? AND is_active = TRUE;`,
+       WHERE id = ? AND user_id = ?${activeClause};`,
       [id, userId],
     );
 

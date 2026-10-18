@@ -12,6 +12,7 @@ import { userRouter } from './routes/user.routes.js';
 import { vehicleRouter } from './routes/vehicle.routes.js';
 import { rideRouter } from './routes/ride.routes.js';
 import { bookingRouter } from './routes/booking.routes.js';
+import { docsRouter } from './routes/docs.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -20,6 +21,7 @@ export function createApp(): Express {
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: false, // Allows Swagger UI CDN assets to render cleanly
     }),
   );
 
@@ -43,6 +45,8 @@ export function createApp(): Express {
       endpoints: {
         health: `${config.apiPrefix}/health`,
         ready: `${config.apiPrefix}/ready`,
+        docs: `${config.apiPrefix}/docs`,
+        openapi: `${config.apiPrefix}/docs/openapi.json`,
         auth: `${config.apiPrefix}/auth`,
         users: `${config.apiPrefix}/users`,
         vehicles: `${config.apiPrefix}/vehicles`,
@@ -53,6 +57,7 @@ export function createApp(): Express {
   });
 
   // 6. Mount API v1 routers
+  app.use(`${config.apiPrefix}/docs`, docsRouter);
   app.use(config.apiPrefix, healthRouter);
   app.use(`${config.apiPrefix}/auth`, authRouter);
   app.use(`${config.apiPrefix}/users`, userRouter);
